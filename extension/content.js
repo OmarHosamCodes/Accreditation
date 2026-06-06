@@ -5,6 +5,9 @@
   const root = document.createElement("div");
   root.id = "accred-toolbar";
   document.documentElement.appendChild(root);
+  const composer = document.createElement("div");
+  composer.id = "accred-evidence-popover";
+  document.documentElement.appendChild(composer);
 
   const state = {
     collapsed: false,
@@ -17,7 +20,10 @@
     scores: [],
     evidence: [],
     selectedDimId: null,
-    pinMode: false
+    pinMode: false,
+    pendingEvidence: null,
+    pendingElement: null,
+    mounted: false
   };
 
   function detectPage() {
@@ -52,6 +58,16 @@
       }
       return response.data;
     });
+  }
+
+  function animateRender() {
+    if (!window.gsap) return;
+    if (!state.mounted) {
+      window.gsap.fromTo(root, { autoAlpha: 0, y: 14, scale: .985 }, { autoAlpha: 1, y: 0, scale: 1, duration: .28, ease: "power3.out" });
+      state.mounted = true;
+    }
+    window.gsap.fromTo(root.querySelectorAll(".accred-card"), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .22, stagger: .025, ease: "power2.out" });
+    window.gsap.fromTo(root.querySelectorAll(".accred-progress span.done"), { scaleY: .45 }, { scaleY: 1, duration: .2, transformOrigin: "center", ease: "back.out(2)" });
   }
 
   function selectedDim() {
@@ -126,6 +142,8 @@
 
     bind();
     renderPins();
+    renderComposer();
+    requestAnimationFrame(animateRender);
   }
 
   function renderLoginState(page) {
@@ -157,7 +175,7 @@
         <select class="accred-select" id="accred-dim">${scoreOptions()}</select>
         ${dim ? `
           <div class="accred-card">
-            <strong>${esc(dim.name)}</strong>
+            <div class="accred-card-title">${esc(dim.name)}</div>
             <div class="accred-muted">${esc(dim.description)}</div>
             <label class="accred-label">Score</label>
             <div class="accred-scoreline">
@@ -176,7 +194,7 @@
             ${anchorsHtml(dim)}
           </div>
           <div class="accred-card">
-            <strong>Evidence (${evidence.length})</strong>
+            <div class="accred-card-title">Evidence (${evidence.length})</div>
             <div class="accred-evidence-list">
               ${evidence.length ? evidence.map((pin, index) => `<div class="accred-evidence-item"><strong>#${index + 1}</strong> ${esc(pin.note)}<br><span class="accred-muted">${esc(pin.element_text || pin.page_url)}</span></div>`).join("") : `<div class="accred-muted">Turn on pin mode and click the page to attach evidence.</div>`}
             </div>
@@ -184,6 +202,65 @@
         ` : ""}
       ` : ""}
     `;
+  }
+
+  function renderComposer() {
+    const pending = state.pendingEvidence;
+    const dim = selectedDim();
+    if (!pending || !dim) {
+      composer.classList.remove("show");
+      composer.innerHTML = "";
+      return;
+    }
+
+    composer.innerHTML = `
+      <div class="accred-pop-arrow"></div>
+      <div class="accred-card accred-evidence-compose">
+        <div class="accred-card-title">New evidence</div>
+        <div class="accred-target">
+          <span>Target</span>
+          <strong>${esc(pending.element_text || pending.selector || "Page area")}</strong>
+        </div>
+        <label class="accred-label">Evidence note</label>
+        <textarea class="accred-textarea" id="accred-evidence-note" placeholder="What does this prove for ${esc(dim.name)}?">${esc(pending.note || "")}</textarea>
+        <label class="accred-label">Visibility</label>
+        <select class="accred-select" id="accred-evidence-visibility">
+          <option value="brand-visible" ${pending.visibility === "brand-visible" ? "selected" : ""}>Brand-visible</option>
+          <option value="private" ${pending.visibility === "private" ? "selected" : ""}>Private</option>
+          <option value="public" ${pending.visibility === "public" ? "selected" : ""}>Public</option>
+        </select>
+        <div class="accred-row accred-actions">
+          <button class="accred-btn primary" id="accred-save-evidence">Save evidence</button>
+          <button class="accred-btn" id="accred-cancel-evidence">Cancel</button>
+        </div>
+      </div>
+    `;
+    composer.classList.add("show");
+    positionComposer();
+    bindComposer();
+    if (window.gsap) window.gsap.fromTo(composer, { autoAlpha: 0, y: 8, scale: .985 }, { autoAlpha: 1, y: 0, scale: 1, duration: .2, ease: "power2.out" });
+  }
+
+  function positionComposer() {
+    if (!state.pendingEvidence || !composer.classList.contains("show")) return;
+    const position = pinPosition(state.pendingEvidence);
+    const width = 286;
+    const margin = 12;
+    const left = Math.min(Math.max(position.x + 18, margin), window.innerWidth - width - margin);
+    const top = Math.min(Math.max(position.y - 18, margin), window.innerHeight - 270);
+    composer.style.left = `${left}px`;
+    composer.style.top = `${Math.max(top, margin)}px`;
+    composer.style.width = `${width}px`;
+  }
+
+  function bindComposer() {
+    composer.querySelector("#accred-save-evidence")?.addEventListener("click", saveEvidence);
+    composer.querySelector("#accred-cancel-evidence")?.addEventListener("click", () => {
+      state.pendingEvidence = null;
+      state.pendingElement = null;
+      render();
+    });
+    composer.querySelector("#accred-evidence-note")?.focus();
   }
 
   function bind() {
@@ -276,6 +353,33 @@
     render();
   }
 
+  async function saveEvidence() {
+    if (!state.audit || !state.pendingEvidence) return;
+    const note = composer.querySelector("#accred-evidence-note")?.value?.trim() || "";
+    const visibility = composer.querySelector("#accred-evidence-visibility")?.value || "brand-visible";
+    if (note.length < 2) {
+      state.error = "Evidence note is required.";
+      render();
+      return;
+    }
+
+    state.error = "";
+    try {
+      const data = await api("POST", `/api/extension/audits/${state.audit.id}/evidence`, {
+        ...state.pendingEvidence,
+        note,
+        visibility
+      });
+      state.evidence.push(data.evidence);
+      state.pendingEvidence = null;
+      state.pendingElement = null;
+      state.audit = data.audit || state.audit;
+    } catch (error) {
+      state.error = error.message;
+    }
+    render();
+  }
+
   async function publishAudit() {
     if (!state.audit || !canPublish()) return;
     const summary = prompt("Overall audit summary", "Audited from the live page with extension evidence.");
@@ -326,57 +430,129 @@
     return parts.join(".");
   }
 
+  function resolveDomPath(path) {
+    if (!path) return null;
+    const parts = String(path).split(".");
+    let node = null;
+    for (const part of parts) {
+      const match = part.match(/^([a-z0-9-]+)\[(\d+)\]$/i);
+      if (!match) return null;
+      const tag = match[1].toLowerCase();
+      const index = Number(match[2]) - 1;
+      if (!node) {
+        node = tag === "html" ? document.documentElement : document.getElementsByTagName(tag)[index];
+      } else {
+        node = Array.from(node.children).filter((child) => child.nodeName.toLowerCase() === tag)[index] || null;
+      }
+      if (!node) return null;
+    }
+    return node;
+  }
+
+  function resolvePinElement(pin) {
+    if (pin === state.pendingEvidence && state.pendingElement?.isConnected) return state.pendingElement;
+    if (pin.selector) {
+      try {
+        const element = document.querySelector(pin.selector);
+        if (element) return element;
+      } catch {}
+    }
+    return resolveDomPath(pin.dom_path);
+  }
+
+  function pinPosition(pin) {
+    const element = resolvePinElement(pin);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      if (rect.width || rect.height) {
+        const rx = Number.isFinite(Number(pin.offset_x_ratio)) ? Number(pin.offset_x_ratio) : .5;
+        const ry = Number.isFinite(Number(pin.offset_y_ratio)) ? Number(pin.offset_y_ratio) : .5;
+        return {
+          x: rect.left + rect.width * Math.min(Math.max(rx, 0), 1),
+          y: rect.top + rect.height * Math.min(Math.max(ry, 0), 1),
+          tied: true
+        };
+      }
+    }
+    return { x: Number(pin.x) || 0, y: Number(pin.y) || 0, tied: false };
+  }
+
   async function addEvidence(event) {
     if (!state.pinMode || !state.audit || !state.selectedDimId) return;
-    if (root.contains(event.target)) return;
+    if (root.contains(event.target) || composer.contains(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
 
-    const note = prompt("Evidence note for " + selectedDim()?.name);
-    if (!note) return;
-
+    const page = detectPage();
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const offsetXRatio = rect.width ? (event.clientX - rect.left) / rect.width : .5;
+    const offsetYRatio = rect.height ? (event.clientY - rect.top) / rect.height : .5;
     state.error = "";
-    try {
-      const page = detectPage();
-      const data = await api("POST", `/api/extension/audits/${state.audit.id}/evidence`, {
-        dim_id: Number(state.selectedDimId),
-        platform: page.platform,
-        page_url: page.url,
-        selector: cssSelector(event.target),
-        dom_path: domPath(event.target),
-        x: event.clientX,
-        y: event.clientY,
-        viewport_width: window.innerWidth,
-        viewport_height: window.innerHeight,
-        element_text: event.target?.innerText || event.target?.textContent || "",
-        note,
-        visibility: "brand-visible"
-      });
-      state.evidence.push(data.evidence);
-    } catch (error) {
-      state.error = error.message;
-    }
+    state.pinMode = false;
+    document.body.classList.remove("accred-pin-mode");
+    state.pendingElement = target;
+    state.pendingEvidence = {
+      dim_id: Number(state.selectedDimId),
+      platform: page.platform,
+      page_url: page.url,
+      selector: cssSelector(target),
+      dom_path: domPath(target),
+      x: event.clientX,
+      y: event.clientY,
+      offset_x_ratio: Math.min(Math.max(offsetXRatio, 0), 1),
+      offset_y_ratio: Math.min(Math.max(offsetYRatio, 0), 1),
+      viewport_width: window.innerWidth,
+      viewport_height: window.innerHeight,
+      element_text: String(target.innerText || target.textContent || "").trim().slice(0, 500),
+      note: "",
+      visibility: "brand-visible"
+    };
     render();
   }
 
-  function renderPins() {
+  function renderPins(animate = true) {
     document.querySelectorAll(".accred-pin").forEach((pin) => pin.remove());
     for (const pin of state.evidence) {
       if (pin.page_url && pin.page_url.split("?")[0] !== location.href.split("?")[0]) continue;
       const el = document.createElement("div");
+      const position = pinPosition(pin);
       el.className = "accred-pin";
+      if (!position.tied) el.classList.add("detached");
       el.textContent = String(state.evidence.indexOf(pin) + 1);
       el.title = pin.note;
-      el.style.left = `${pin.x}px`;
-      el.style.top = `${pin.y}px`;
+      el.style.left = `${position.x}px`;
+      el.style.top = `${position.y}px`;
       document.documentElement.appendChild(el);
+      if (animate && window.gsap) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
+    }
+    if (state.pendingEvidence) {
+      const el = document.createElement("div");
+      const position = pinPosition(state.pendingEvidence);
+      el.className = "accred-pin pending";
+      el.textContent = "+";
+      el.title = "Unsaved evidence";
+      el.style.left = `${position.x}px`;
+      el.style.top = `${position.y}px`;
+      document.documentElement.appendChild(el);
+      if (animate && window.gsap) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
     }
   }
 
   document.addEventListener("click", addEvidence, true);
   for (const eventName of ["click", "dblclick", "mousedown", "mouseup", "pointerdown", "pointerup", "keydown", "keyup", "input", "change"]) {
     root.addEventListener(eventName, (event) => event.stopPropagation());
+    composer.addEventListener(eventName, (event) => event.stopPropagation());
   }
+  window.addEventListener("scroll", () => {
+    renderPins(false);
+    positionComposer();
+  }, true);
+  window.addEventListener("resize", () => {
+    renderPins(false);
+    positionComposer();
+  });
 
   render();
   connect();

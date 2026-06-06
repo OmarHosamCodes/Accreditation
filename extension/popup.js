@@ -54,4 +54,8 @@ async function save() {
 }
 
 els.save.addEventListener("click", save);
-load();
+load().then(() => {
+  if (!window.gsap) return;
+  window.gsap.fromTo("main", { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .24, ease: "power2.out" });
+  window.gsap.fromTo("label, button", { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: .22, stagger: .035, delay: .04, ease: "power2.out" });
+});

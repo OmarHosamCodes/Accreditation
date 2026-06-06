@@ -80,6 +80,8 @@ type EvidencePin = {
   dom_path: string;
   x: number;
   y: number;
+  offset_x_ratio?: number;
+  offset_y_ratio?: number;
   viewport_width: number;
   viewport_height: number;
   element_text: string;
@@ -648,6 +650,8 @@ async function extensionCreateEvidence(request: Request, auditId: number) {
       dom_path: cleanText(body?.dom_path).slice(0, 1000),
       x: Number(body?.x) || 0,
       y: Number(body?.y) || 0,
+      offset_x_ratio: Number.isFinite(Number(body?.offset_x_ratio)) ? Number(body?.offset_x_ratio) : undefined,
+      offset_y_ratio: Number.isFinite(Number(body?.offset_y_ratio)) ? Number(body?.offset_y_ratio) : undefined,
       viewport_width: Number(body?.viewport_width) || 0,
       viewport_height: Number(body?.viewport_height) || 0,
       element_text: cleanText(body?.element_text).slice(0, 500),

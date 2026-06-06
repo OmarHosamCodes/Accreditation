@@ -24,7 +24,7 @@
         "https://www.facebook.com/*",
         "https://facebook.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["gsap.min.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

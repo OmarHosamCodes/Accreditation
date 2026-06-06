@@ -1,6 +1,8 @@
 #accred-toolbar,
 #accred-toolbar *,
-.accred-pin {
+.accred-pin,
+#accred-evidence-popover,
+#accred-evidence-popover * {
   box-sizing: border-box;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -9,15 +11,15 @@
   position: fixed;
   z-index: 2147483647;
   right: 18px;
-  top: 84px;
-  width: 360px;
-  max-height: calc(100vh - 104px);
+  top: 76px;
+  width: 384px;
+  max-height: calc(100vh - 92px);
   overflow: auto;
   border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 10px;
-  background: rgba(11, 12, 15, .94);
+  border-radius: 12px;
+  background: rgba(10, 11, 13, .95);
   color: #f2f3f5;
-  box-shadow: 0 16px 50px rgba(0, 0, 0, .45);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .48);
   backdrop-filter: blur(16px);
 }
 
@@ -37,7 +39,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
+  padding: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, .1);
 }
 
@@ -80,10 +82,18 @@
   background: rgba(255, 255, 255, .06);
   color: #f2f3f5;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.accred-icon:hover {
+  background: rgba(255, 255, 255, .1);
+  border-color: rgba(198, 255, 61, .45);
 }
 
 .accred-body {
-  padding: 12px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
 }
 
 #accred-toolbar.accred-collapsed .accred-body {
@@ -93,20 +103,31 @@
 .accred-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.accred-actions {
+  margin-top: 12px;
 }
 
 .accred-card {
   border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 9px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, .045);
-  padding: 10px;
-  margin-bottom: 10px;
+  padding: 12px;
+}
+
+.accred-card-title {
+  color: #f8f9fb;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 5px;
 }
 
 .accred-label {
   display: block;
-  margin: 10px 0 5px;
+  margin: 12px 0 6px;
   color: #a4a8b2;
   font-size: 11px;
   font-weight: 700;
@@ -122,11 +143,22 @@
   border-radius: 8px;
   background: #15171c;
   color: #f2f3f5;
-  padding: 9px;
+  padding: 10px;
+  line-height: 1.35;
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.accred-input:focus,
+.accred-select:focus,
+.accred-textarea:focus {
+  border-color: rgba(198, 255, 61, .72);
+  box-shadow: 0 0 0 3px rgba(198, 255, 61, .13);
+  background: #181b20;
 }
 
 .accred-textarea {
-  min-height: 74px;
+  min-height: 86px;
   resize: vertical;
 }
 
@@ -140,14 +172,30 @@
   background: rgba(255, 255, 255, .08);
   color: #f2f3f5;
   font-weight: 700;
-  padding: 9px 10px;
+  min-height: 38px;
+  padding: 9px 12px;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.accred-row .accred-btn {
+  flex: 1;
+}
+
+.accred-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .12);
+  transform: translateY(-1px);
 }
 
 .accred-btn.primary {
   border-color: transparent;
   background: #c6ff3d;
   color: #0a0b0d;
+}
+
+.accred-btn.primary:hover:not(:disabled) {
+  background: #d4ff69;
+  box-shadow: 0 8px 24px rgba(198, 255, 61, .2);
 }
 
 .accred-btn.danger {
@@ -169,7 +217,7 @@
   display: grid;
   grid-template-columns: repeat(16, 1fr);
   gap: 3px;
-  margin: 8px 0 10px;
+  margin: 10px 0 12px;
 }
 
 .accred-progress span {
@@ -192,6 +240,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 2px;
 }
 
 .accred-scoreline input {
@@ -207,17 +256,83 @@
 
 .accred-evidence-list {
   display: grid;
-  gap: 6px;
-  max-height: 150px;
+  gap: 8px;
+  max-height: 170px;
   overflow: auto;
 }
 
 .accred-evidence-item {
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 8px;
-  padding: 8px;
+  background: rgba(0, 0, 0, .14);
+  padding: 9px;
   color: #d7dae1;
   font-size: 12px;
+  line-height: 1.4;
+}
+
+.accred-evidence-compose {
+  border-color: rgba(198, 255, 61, .34);
+  background: linear-gradient(180deg, rgba(198, 255, 61, .09), rgba(255, 255, 255, .045));
+}
+
+#accred-evidence-popover {
+  position: fixed;
+  z-index: 2147483647;
+  display: none;
+  color: #f2f3f5;
+  filter: drop-shadow(0 18px 46px rgba(0, 0, 0, .46));
+}
+
+#accred-evidence-popover.show {
+  display: block;
+}
+
+#accred-evidence-popover .accred-card {
+  background: rgba(10, 11, 13, .96);
+  border-color: rgba(198, 255, 61, .36);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .25);
+  backdrop-filter: blur(16px);
+}
+
+.accred-pop-arrow {
+  position: absolute;
+  left: -6px;
+  top: 22px;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid rgba(198, 255, 61, .36);
+  border-bottom: 1px solid rgba(198, 255, 61, .36);
+  background: rgba(10, 11, 13, .96);
+  transform: rotate(45deg);
+}
+
+.accred-target {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .18);
+  padding: 9px;
+}
+
+.accred-target span {
+  color: #9aa0aa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.accred-target strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #f2f3f5;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .accred-pin {
@@ -235,6 +350,18 @@
   font-weight: 900;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   transform: translate(-50%, -50%);
+}
+
+.accred-pin.pending {
+  border-color: #c6ff3d;
+  background: #0a0b0d;
+  color: #c6ff3d;
+  box-shadow: 0 0 0 4px rgba(198, 255, 61, .18), 0 8px 24px rgba(0, 0, 0, .35);
+}
+
+.accred-pin.detached {
+  border-color: rgba(255, 106, 85, .95);
+  background: #ff6a55;
 }
 
 body.accred-pin-mode {

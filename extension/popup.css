@@ -21,14 +21,14 @@ body {
 }
 
 main {
-  padding: 16px;
+  padding: 18px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .brand span {
@@ -48,19 +48,25 @@ label {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .04em;
-  margin: 12px 0;
+  margin: 14px 0;
   text-transform: uppercase;
 }
 
 input {
   width: 100%;
   margin-top: 6px;
-  padding: 10px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
   font: inherit;
+  outline: none;
+}
+
+input:focus {
+  border-color: rgba(198, 255, 61, .72);
+  box-shadow: 0 0 0 3px rgba(198, 255, 61, .13);
 }
 
 button {
@@ -70,8 +76,16 @@ button {
   background: var(--accent);
   color: #0a0b0d;
   font-weight: 800;
-  padding: 11px;
+  margin-top: 4px;
+  padding: 12px;
   cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+button:hover {
+  background: #d4ff69;
+  box-shadow: 0 8px 24px rgba(198, 255, 61, .2);
+  transform: translateY(-1px);
 }
 
 #status {
