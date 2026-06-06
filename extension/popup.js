@@ -12,8 +12,20 @@ const els = {
   status: document.getElementById("status")
 };
 
+function storageGet(keys) {
+  return new Promise((resolve) => chrome.storage.sync.get(keys, resolve));
+}
+
+function storageSet(values) {
+  return new Promise((resolve) => chrome.storage.sync.set(values, resolve));
+}
+
+function sendMessage(message) {
+  return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+}
+
 async function load() {
-  const settings = await chrome.storage.sync.get(Object.keys(DEFAULTS));
+  const settings = await storageGet(Object.keys(DEFAULTS));
   const merged = { ...DEFAULTS, ...settings };
   els.apiBase.value = merged.apiBase;
   els.username.value = merged.username;
@@ -26,9 +38,9 @@ async function save() {
     username: els.username.value.trim(),
     password: els.password.value
   };
-  await chrome.storage.sync.set(settings);
+  await storageSet(settings);
   els.status.textContent = "Testing credentials...";
-  const response = await chrome.runtime.sendMessage({
+  const response = await sendMessage({
     type: "api",
     method: "POST",
     path: "/api/extension/login",

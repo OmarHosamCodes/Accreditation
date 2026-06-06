@@ -44,7 +44,9 @@
   }
 
   function api(method, path, body) {
-    return chrome.runtime.sendMessage({ type: "api", method, path, body }).then((response) => {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "api", method, path, body }, resolve);
+    }).then((response) => {
       if (!response?.ok) {
         throw new Error((response?.data?.errors || ["Request failed"]).join(" "));
       }
@@ -372,7 +374,9 @@
   }
 
   document.addEventListener("click", addEvidence, true);
-  root.addEventListener("click", (event) => event.stopPropagation(), true);
+  for (const eventName of ["click", "dblclick", "mousedown", "mouseup", "pointerdown", "pointerup", "keydown", "keyup", "input", "change"]) {
+    root.addEventListener(eventName, (event) => event.stopPropagation());
+  }
 
   render();
   connect();
