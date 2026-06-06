@@ -186,10 +186,8 @@ function computeOverall(scoreArr: Array<{ dim_id: number; score: number }>, db: 
 
     for (const dimension of dimensions) {
       const score = scoreArr.find((item) => item.dim_id === dimension.id);
-      if (score) {
-        sum += score.score;
-        count += 1;
-      }
+      sum += score?.score || 0;
+      count += 1;
     }
 
     const average = count ? sum / count : 0;
@@ -692,12 +690,6 @@ async function extensionSubmitAudit(request: Request, auditId: number) {
     }
 
     const scores = db.audit_scores[String(auditId)] || [];
-    for (const dimension of db.dimensions) {
-      const score = scores.find((item) => item.dim_id === dimension.id);
-      if (!score) errors.push(`${dimension.name} needs a score.`);
-      else if (!cleanText(score.note)) errors.push(`${dimension.name} needs a note.`);
-    }
-
     if (summary.length > 1200) errors.push("Summary is too long.");
     if (errors.length) return;
 
@@ -718,6 +710,7 @@ async function extensionSubmitAudit(request: Request, auditId: number) {
     status: "published",
     overall_score: publishedAudit?.overall_score,
     tier: publishedAudit ? tierFor(publishedAudit.overall_score).name : undefined,
+    public_url: publishedAudit ? `${new URL(request.url).origin}/#audit/${publishedAudit.id}` : undefined,
     state,
   });
 }
