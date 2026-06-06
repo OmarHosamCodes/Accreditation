@@ -47,13 +47,67 @@ For production, add the deployed API origin to `extension/manifest.json` under `
 
 ## Railway
 
+`railway.json` runs:
+
+- Build: `bun install --frozen-lockfile && bun run check`
+- Start: `bun run start`
+- Health check: `/healthz`
+
+### Deploy or Update Production
+
 ```bash
 railway login
-railway init
-railway add
-railway variables --set ADMIN_USERNAME=roaster
-railway variables --set ADMIN_PASSWORD=<secure-password>
+railway link
+railway add --database postgres
+railway variables --set ADMIN_USERNAME=roaster ADMIN_PASSWORD=<secure-password>
 railway up
 ```
 
-After deploy, generate or open the Railway public domain from the Railway dashboard.
+If this is a brand-new Railway project, use `railway init` instead of `railway link`.
+
+After deploy:
+
+1. Open the Railway dashboard.
+2. Open the web service.
+3. Go to Settings > Networking.
+4. Generate or copy the public domain.
+5. Confirm the app is healthy by opening:
+
+```bash
+https://your-service.up.railway.app/healthz
+```
+
+It should return:
+
+```json
+{"ok":true}
+```
+
+### Use the Extension Against Railway
+
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click "Load unpacked".
+4. Select this repo's `extension/` folder.
+5. Open the extension popup.
+6. Set:
+
+```bash
+API base URL=https://your-service.up.railway.app
+Username=roaster
+Password=<secure-password>
+```
+
+7. Open an Instagram or Facebook brand page.
+8. Click `Start audit`.
+9. Score any metrics you want.
+10. Use `Pin` to attach evidence to page elements.
+11. Click `Publish`; unfinished audits can publish, and missing metrics score as `0`.
+12. Use the `Copy link` button after publish to share the public audit URL.
+
+The extension manifest already allows Railway domains:
+
+```json
+"https://*.railway.app/*",
+"https://*.up.railway.app/*"
+```

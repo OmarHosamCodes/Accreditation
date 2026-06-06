@@ -634,7 +634,7 @@
     let node = element;
     while (node && node.nodeType === Node.ELEMENT_NODE && parts.length < 5) {
       let part = node.nodeName.toLowerCase();
-      const className = String(node.className || "").trim().split(/\s+/).filter(Boolean)[0];
+      const className = firstClassToken(node);
       if (className) part += "." + CSS.escape(className);
       const parent = node.parentElement;
       if (parent) {
@@ -645,6 +645,14 @@
       node = parent;
     }
     return parts.join(" > ");
+  }
+
+  function firstClassToken(element) {
+    if (!(element instanceof Element)) return "";
+    const fromList = element.classList && element.classList.length ? element.classList[0] : "";
+    const raw = fromList || element.getAttribute("class") || "";
+    const token = String(raw).trim().split(/\s+/).find((item) => item && item !== "[object" && !item.includes("SVGAnimatedString"));
+    return token || "";
   }
 
   function domPath(element) {
@@ -672,11 +680,22 @@
       if (!node) {
         node = tag === "html" ? document.documentElement : document.getElementsByTagName(tag)[index];
       } else {
-        node = Array.from(node.children).filter((child) => child.nodeName.toLowerCase() === tag)[index] || null;
+        const child = Array.from(node.children)[index] || null;
+        node = child && child.nodeName.toLowerCase() === tag ? child : null;
       }
       if (!node) return null;
     }
     return node;
+  }
+
+  function resolveNearestDomPath(path) {
+    if (!path) return null;
+    const parts = String(path).split(".");
+    for (let end = parts.length; end > 0; end -= 1) {
+      const node = resolveDomPath(parts.slice(0, end).join("."));
+      if (node) return node;
+    }
+    return null;
   }
 
   function resolvePinElement(pin) {
@@ -687,7 +706,14 @@
         if (element) return element;
       } catch {}
     }
-    return resolveDomPath(pin.dom_path);
+    const exact = resolveDomPath(pin.dom_path);
+    if (exact) return exact;
+    const nearest = resolveNearestDomPath(pin.dom_path);
+    if (!nearest || !pin.dom_path) return nearest;
+    const last = String(pin.dom_path).split(".").at(-1);
+    const tag = last?.match(/^([a-z0-9-]+)\[/i)?.[1];
+    if (!tag) return nearest;
+    return nearest.querySelector?.(tag) || nearest;
   }
 
   function pinPosition(pin) {
