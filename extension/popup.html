@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accreditation Toolbar</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <div class="brand"><span>A</span><strong>Accreditation</strong></div>
+    <label>
+      API base URL
+      <input id="apiBase" placeholder="http://localhost:3000">
+    </label>
+    <label>
+      Username
+      <input id="username" autocomplete="username">
+    </label>
+    <label>
+      Password
+      <input id="password" type="password" autocomplete="current-password">
+    </label>
+    <button id="save">Save and test</button>
+    <p id="status"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -56,12 +56,38 @@ type Audit = {
   summary: string;
   created_at: number;
   published_at?: number;
+  source?: "admin" | "extension" | "import";
+  submitted_at?: number;
 };
 
 type AuditScore = {
   dim_id: number;
   score: number;
   note: string;
+  confidence?: "low" | "medium" | "high";
+  evidence_count?: number;
+  updated_at?: number;
+};
+
+type EvidencePin = {
+  id: number;
+  audit_id: number;
+  dim_id: number;
+  author: string;
+  platform: Platform;
+  page_url: string;
+  selector: string;
+  dom_path: string;
+  x: number;
+  y: number;
+  viewport_width: number;
+  viewport_height: number;
+  element_text: string;
+  note: string;
+  visibility: "private" | "brand-visible" | "public";
+  status: "open" | "resolved" | "detached";
+  created_at: number;
+  updated_at: number;
 };
 
 type AppState = {
@@ -74,13 +100,14 @@ type AppState = {
   applications: Application[];
   audits: Audit[];
   audit_scores: Record<string, AuditScore[]>;
+  evidence_pins: EvidencePin[];
   users?: Array<{ name: string; role: string; email: string }>;
   nextId: number;
 };
 
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "roaster";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "roast123";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "change-me";
 const htmlFile = Bun.file("artifact/index.html");
 const rateLimitByEmail = new Map<string, number>();
 
@@ -138,7 +165,7 @@ const SEED_ANCHORS: Record<string, [string, string, string]> = {
 };
 
 function tierFor(score: number) {
-  return TIERS.find((tier) => score >= tier.min) || TIERS[TIERS.length - 1];
+  return TIERS.find((tier) => score >= tier.min) || TIERS[TIERS.length - 1]!;
 }
 
 function activeWeights(db: AppState, weightsVersionId: number) {
@@ -182,7 +209,7 @@ function freshDB(): AppState {
   const anchors: AppState["rubric_anchors"][string] = {};
 
   for (const dimension of dimensions) {
-    const seed = SEED_ANCHORS[dimension.name];
+    const seed = SEED_ANCHORS[dimension.name] || ["", "", ""];
     anchors[String(dimension.id)] = {
       anchor_1: seed[0],
       anchor_5: seed[1],
@@ -200,99 +227,19 @@ function freshDB(): AppState {
     applications: [],
     audits: [],
     audit_scores: {},
+    evidence_pins: [],
     users: [{ name: "Roaster", role: "admin", email: "roaster@accreditation.io" }],
     nextId: 1,
   };
 
-  seedDemo(db);
   return db;
 }
 
-function seedDemo(db: AppState) {
-  const demo: Array<[string, Platform, string, string, string, number[]]> = [
-    ["Lumen Skincare", "ig", "@lumenskin", "skincare.example.com", "D2C beauty", [9, 9, 8, 8, 9, 8, 8, 9, 8, 7, 8, 9, 8, 9, 8, 8]],
-    ["Forge & Co", "ig", "@forgeandco", "forge.example.com", "Menswear", [8, 8, 7, 7, 8, 7, 7, 8, 7, 6, 7, 8, 7, 8, 7, 7]],
-    ["Helio Coffee", "ig", "@heliocoffee", "helio.example.com", "Specialty coffee", [7, 8, 7, 7, 7, 6, 7, 7, 8, 7, 7, 6, 6, 6, 7, 7]],
-    ["Northwind Realty", "fb", "northwindrealty", "northwind.example.com", "Real estate", [6, 6, 6, 5, 6, 5, 6, 6, 5, 5, 5, 6, 6, 5, 6, 6]],
-    ["BiteBox Meals", "ig", "@biteboxmeals", "bitebox.example.com", "Meal prep", [7, 6, 6, 6, 6, 6, 6, 6, 6, 5, 6, 7, 6, 7, 6, 6]],
-    ["Apex Fitness", "fb", "apexfitnesshub", "apex.example.com", "Gym", [5, 5, 4, 5, 5, 5, 5, 5, 4, 4, 4, 5, 4, 4, 5, 5]],
-    ["Cloudbase SaaS", "ig", "@cloudbasehq", "cloudbase.example.com", "B2B SaaS", [8, 7, 7, 6, 7, 6, 6, 7, 5, 5, 5, 7, 7, 6, 7, 7]],
-    ["Petal & Stem", "ig", "@petalstem", "petalstem.example.com", "Florist", [6, 7, 6, 6, 5, 5, 5, 6, 7, 7, 6, 6, 5, 5, 6, 7]],
-  ];
-
-  demo.forEach((item, index) => {
-    const brandId = db.nextId++;
-    db.brands.push({
-      id: brandId,
-      name: item[0],
-      platform: item[1],
-      handle: item[2],
-      url: `https://${item[3]}`,
-      contact_email: `team@${item[3]}`,
-      niche: item[4],
-      created_at: Date.now() - index * 86400000,
-    });
-
-    const auditId = db.nextId++;
-    const scores = item[5];
-    const overall = computeOverall(scores.map((score, scoreIndex) => ({ dim_id: scoreIndex + 1, score })), db, 1);
-    db.audits.push({
-      id: auditId,
-      brand_id: brandId,
-      auditor: "Roaster",
-      rubric_version_id: 1,
-      weights_version_id: 1,
-      status: "published",
-      overall_score: overall,
-      tier: tierFor(overall).key,
-      summary: "Solid presence with clear strengths; see per-dimension notes for the roast.",
-      published_at: Date.now() - index * 86400000,
-      created_at: Date.now() - index * 86400000,
-    });
-    db.audit_scores[String(auditId)] = scores.map((score, scoreIndex) => ({ dim_id: scoreIndex + 1, score, note: "" }));
-  });
-
-  const brandOne = db.nextId++;
-  db.brands.push({
-    id: brandOne,
-    name: "Verde Wellness",
-    platform: "ig",
-    handle: "@verdewellness",
-    url: "https://verde.example.com",
-    contact_email: "hi@verde.example.com",
-    niche: "Wellness",
-    created_at: Date.now(),
-  });
-  db.applications.push({
-    id: db.nextId++,
-    brand_id: brandOne,
-    type: "new",
-    status: "pending",
-    changes_note: "",
-    created_at: Date.now() - 3600000,
-    why: "We want third-party proof our content is working.",
-  });
-
-  const brandTwo = db.nextId++;
-  db.brands.push({
-    id: brandTwo,
-    name: "Stack Studios",
-    platform: "fb",
-    handle: "stackstudios",
-    url: "https://stack.example.com",
-    contact_email: "team@stack.example.com",
-    niche: "Design agency",
-    created_at: Date.now(),
-  });
-  db.applications.push({
-    id: db.nextId++,
-    brand_id: brandTwo,
-    type: "new",
-    status: "pending",
-    changes_note: "",
-    created_at: Date.now() - 7200000,
-    why: "Pitching enterprise clients, need a credibility badge.",
-  });
+function normalizeState(state: AppState) {
+  state.evidence_pins ||= [];
+  state.audit_scores ||= {};
+  state.users ||= [{ name: "Roaster", role: "admin", email: "roaster@accreditation.io" }];
+  return state;
 }
 
 type Store = {
@@ -306,16 +253,16 @@ function createMemoryStore(): Store {
   let queue = Promise.resolve();
   return {
     async get() {
-      return structuredClone(state);
+      return structuredClone(normalizeState(state));
     },
     async set(nextState) {
-      state = structuredClone(nextState);
+      state = structuredClone(normalizeState(nextState));
     },
     async mutate(mutator) {
       const task = queue.then(async () => {
-        const working = structuredClone(state);
+        const working = structuredClone(normalizeState(state));
         const result = mutator(working);
-        state = structuredClone(result || working);
+        state = structuredClone(normalizeState(result || working));
         return structuredClone(state);
       });
       queue = task.then(() => undefined, () => undefined);
@@ -344,9 +291,10 @@ async function createPostgresStore(databaseUrl: string): Promise<Store> {
   return {
     async get() {
       const rows = await sql<Array<{ data: AppState }>>`select data from app_state where id = 1`;
-      return rows[0]?.data || freshDB();
+      return normalizeState(rows[0]?.data || freshDB());
     },
     async set(state) {
+      normalizeState(state);
       await sql`
         insert into app_state (id, data, updated_at)
         values (1, ${sql.json(state)}, now())
@@ -356,9 +304,9 @@ async function createPostgresStore(databaseUrl: string): Promise<Store> {
     async mutate(mutator) {
       const task = queue.then(async () => {
         const rows = await sql<Array<{ data: AppState }>>`select data from app_state where id = 1`;
-        const working = rows[0]?.data || freshDB();
+        const working = normalizeState(rows[0]?.data || freshDB());
         const result = mutator(working);
-        const nextState = result || working;
+        const nextState = normalizeState(result || working);
         await sql`
           update app_state
           set data = ${sql.json(nextState)}, updated_at = now()
@@ -385,12 +333,26 @@ function json(data: unknown, init: ResponseInit = {}) {
     ...init,
     headers: {
       "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+      "access-control-allow-headers": "authorization,content-type",
       ...(init.headers || {}),
     },
   });
 }
 
-async function parseJson(request: Request) {
+function emptyCorsResponse() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+      "access-control-allow-headers": "authorization,content-type",
+    },
+  });
+}
+
+async function parseJson(request: Request): Promise<any> {
   try {
     return await request.json();
   } catch {
@@ -408,6 +370,14 @@ function isAuthed(request: Request) {
   return user === ADMIN_USERNAME && pass === ADMIN_PASSWORD;
 }
 
+function authUser(request: Request) {
+  const auth = request.headers.get("authorization");
+  if (!auth?.startsWith("Basic ")) return "";
+  const decoded = atob(auth.slice("Basic ".length));
+  const splitAt = decoded.indexOf(":");
+  return decoded.slice(0, splitAt) || ADMIN_USERNAME;
+}
+
 function cleanText(value: unknown) {
   return String(value || "").trim();
 }
@@ -422,6 +392,20 @@ function handleFrom(url: string) {
   }
 }
 
+function normalizeHandle(value: unknown, platform: Platform, url = "") {
+  const raw = cleanText(value).replace(/^@/, "");
+  if (raw) return platform === "ig" ? `@${raw}` : raw;
+  return handleFrom(url);
+}
+
+function activeRubricVersion(db: AppState) {
+  return db.rubric_versions.at(-1)?.id || 1;
+}
+
+function activeWeightsVersion(db: AppState) {
+  return db.weights_versions.at(-1)?.id || 1;
+}
+
 function validateState(state: AppState) {
   const errors: string[] = [];
   if (!Array.isArray(state.categories)) errors.push("categories must be an array");
@@ -430,6 +414,7 @@ function validateState(state: AppState) {
   if (!Array.isArray(state.applications)) errors.push("applications must be an array");
   if (!Array.isArray(state.audits)) errors.push("audits must be an array");
   if (!state.audit_scores || typeof state.audit_scores !== "object") errors.push("audit_scores must be an object");
+  if (!Array.isArray(state.evidence_pins)) state.evidence_pins = [];
   if (!Number.isFinite(state.nextId)) errors.push("nextId must be a number");
 
   for (const application of state.applications || []) {
@@ -456,6 +441,281 @@ function validateState(state: AppState) {
   }
 
   return errors;
+}
+
+function extensionBootstrap(db: AppState) {
+  const rubricVersionId = activeRubricVersion(db);
+  const weightsVersionId = activeWeightsVersion(db);
+  return {
+    categories: db.categories,
+    dimensions: db.dimensions,
+    rubric_version_id: rubricVersionId,
+    rubric_anchors: db.rubric_anchors[String(rubricVersionId)] || {},
+    weights_version_id: weightsVersionId,
+    weights: activeWeights(db, weightsVersionId),
+    tiers: TIERS,
+  };
+}
+
+async function extensionLogin(request: Request) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const user = authUser(request);
+  return json({
+    ok: true,
+    user: { name: user || "Roaster", role: user === ADMIN_USERNAME ? "admin" : "auditor" },
+    bootstrap: extensionBootstrap(await store.get()),
+  });
+}
+
+async function extensionBootstrapRoute(request: Request) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  return json({ ok: true, bootstrap: extensionBootstrap(await store.get()) });
+}
+
+async function extensionResolveBrand(request: Request) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const body = await parseJson(request);
+  const platform = cleanText(body?.platform) as Platform;
+  const url = cleanText(body?.url);
+  const detectedName = cleanText(body?.detected_name) || cleanText(body?.name);
+  const niche = cleanText(body?.niche) || "Uncategorized";
+  const contactEmail = cleanText(body?.contact_email).toLowerCase() || "extension@accreditation.local";
+  const errors: string[] = [];
+
+  if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
+  if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) errors.push("URL must be an Instagram or Facebook page.");
+  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+
+  const handle = normalizeHandle(body?.handle, platform, url);
+  let brandId = 0;
+  let created = false;
+  const state = await store.mutate((db) => {
+    const existing = db.brands.find((brand) => brand.platform === platform && (brand.handle.toLowerCase() === handle.toLowerCase() || brand.url === url));
+    if (existing) {
+      existing.url = url || existing.url;
+      if (detectedName && existing.name === existing.handle) existing.name = detectedName;
+      brandId = existing.id;
+      return;
+    }
+
+    brandId = db.nextId++;
+    created = true;
+    db.brands.push({
+      id: brandId,
+      name: detectedName || handle,
+      platform,
+      handle,
+      url,
+      contact_email: contactEmail,
+      niche,
+      created_at: Date.now(),
+    });
+  });
+
+  return json({ ok: true, brand_id: brandId, created, brand: state.brands.find((brand) => brand.id === brandId) });
+}
+
+async function extensionCreateAudit(request: Request) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const body = await parseJson(request);
+  const brandId = Number(body?.brand_id);
+  const auditor = authUser(request) || "Roaster";
+  let auditId = 0;
+
+  const state = await store.mutate((db) => {
+    const brand = db.brands.find((item) => item.id === brandId);
+    if (!brand) return;
+
+    const existing = db.audits.find((audit) => audit.brand_id === brandId && audit.status === "draft" && audit.source === "extension");
+    if (existing) {
+      auditId = existing.id;
+      return;
+    }
+
+    auditId = db.nextId++;
+    db.audits.push({
+      id: auditId,
+      brand_id: brandId,
+      auditor,
+      rubric_version_id: Number(body?.rubric_version_id) || activeRubricVersion(db),
+      weights_version_id: Number(body?.weights_version_id) || activeWeightsVersion(db),
+      status: "draft",
+      overall_score: 0,
+      tier: "roast",
+      summary: "",
+      created_at: Date.now(),
+      source: "extension",
+    });
+    db.audit_scores[String(auditId)] = [];
+  });
+
+  if (!auditId) return json({ ok: false, errors: ["Brand not found"] }, { status: 404 });
+  const audit = state.audits.find((item) => item.id === auditId);
+  return json({
+    ok: true,
+    audit,
+    scores: state.audit_scores[String(auditId)] || [],
+    evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId),
+    bootstrap: extensionBootstrap(state),
+  });
+}
+
+async function extensionGetAudit(request: Request, auditId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const state = await store.get();
+  const audit = state.audits.find((item) => item.id === auditId);
+  if (!audit) return json({ ok: false, errors: ["Audit not found"] }, { status: 404 });
+  return json({
+    ok: true,
+    audit,
+    brand: state.brands.find((brand) => brand.id === audit.brand_id),
+    scores: state.audit_scores[String(auditId)] || [],
+    evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId),
+    bootstrap: extensionBootstrap(state),
+  });
+}
+
+async function extensionSaveScore(request: Request, auditId: number, dimId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const body = await parseJson(request);
+  const score = Number(body?.score);
+  const note = cleanText(body?.note);
+  const confidence = cleanText(body?.confidence) as AuditScore["confidence"];
+  const errors: string[] = [];
+
+  if (!Number.isInteger(score) || score < 1 || score > 10) errors.push("Score must be an integer from 1 to 10.");
+  if (note.length > 1200) errors.push("Note is too long.");
+  if (confidence && !["low", "medium", "high"].includes(confidence)) errors.push("Invalid confidence.");
+  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+
+  let saved: AuditScore | undefined;
+  const state = await store.mutate((db) => {
+    const audit = db.audits.find((item) => item.id === auditId && item.status === "draft");
+    const dimension = db.dimensions.find((item) => item.id === dimId);
+    if (!audit || !dimension) return;
+
+    const scores = (db.audit_scores[String(auditId)] ||= []);
+    const existing = scores.find((item) => item.dim_id === dimId);
+    const evidenceCount = db.evidence_pins.filter((pin) => pin.audit_id === auditId && pin.dim_id === dimId).length;
+    saved = {
+      dim_id: dimId,
+      score,
+      note,
+      confidence: confidence || "medium",
+      evidence_count: evidenceCount,
+      updated_at: Date.now(),
+    };
+
+    if (existing) Object.assign(existing, saved);
+    else scores.push(saved);
+
+    audit.overall_score = computeOverall(scores, db, audit.weights_version_id);
+    audit.tier = tierFor(audit.overall_score).key;
+  });
+
+  if (!saved) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, { status: 404 });
+  return json({ ok: true, score: saved, audit: state.audits.find((item) => item.id === auditId) });
+}
+
+async function extensionCreateEvidence(request: Request, auditId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const body = await parseJson(request);
+  const dimId = Number(body?.dim_id);
+  const visibility = cleanText(body?.visibility) as EvidencePin["visibility"];
+  const platform = cleanText(body?.platform) as Platform;
+  const errors: string[] = [];
+
+  if (!Number.isInteger(dimId)) errors.push("Missing metric dimension.");
+  if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
+  if (visibility && !["private", "brand-visible", "public"].includes(visibility)) errors.push("Invalid visibility.");
+  if (cleanText(body?.note).length < 2) errors.push("Evidence note is required.");
+  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+
+  let pin: EvidencePin | undefined;
+  const state = await store.mutate((db) => {
+    const audit = db.audits.find((item) => item.id === auditId && item.status === "draft");
+    const dimension = db.dimensions.find((item) => item.id === dimId);
+    if (!audit || !dimension) return;
+
+    pin = {
+      id: db.nextId++,
+      audit_id: auditId,
+      dim_id: dimId,
+      author: authUser(request) || "Roaster",
+      platform,
+      page_url: cleanText(body?.page_url).slice(0, 500),
+      selector: cleanText(body?.selector).slice(0, 500),
+      dom_path: cleanText(body?.dom_path).slice(0, 1000),
+      x: Number(body?.x) || 0,
+      y: Number(body?.y) || 0,
+      viewport_width: Number(body?.viewport_width) || 0,
+      viewport_height: Number(body?.viewport_height) || 0,
+      element_text: cleanText(body?.element_text).slice(0, 500),
+      note: cleanText(body?.note).slice(0, 1200),
+      visibility: visibility || "private",
+      status: "open",
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+
+    db.evidence_pins.push(pin);
+    const score = (db.audit_scores[String(auditId)] || []).find((item) => item.dim_id === dimId);
+    if (score) score.evidence_count = db.evidence_pins.filter((item) => item.audit_id === auditId && item.dim_id === dimId).length;
+  });
+
+  if (!pin) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, { status: 404 });
+  return json({ ok: true, evidence: pin, audit: state.audits.find((item) => item.id === auditId) });
+}
+
+async function extensionListEvidence(request: Request, auditId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const state = await store.get();
+  return json({ ok: true, evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId) });
+}
+
+async function extensionSubmitAudit(request: Request, auditId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const body = await parseJson(request);
+  const summary = cleanText(body?.summary);
+  const errors: string[] = [];
+  let publishedAudit: Audit | undefined;
+
+  const state = await store.mutate((db) => {
+    const audit = db.audits.find((item) => item.id === auditId && item.status === "draft");
+    if (!audit) {
+      errors.push("Draft audit not found.");
+      return;
+    }
+
+    const scores = db.audit_scores[String(auditId)] || [];
+    for (const dimension of db.dimensions) {
+      const score = scores.find((item) => item.dim_id === dimension.id);
+      if (!score) errors.push(`${dimension.name} needs a score.`);
+      else if (!cleanText(score.note)) errors.push(`${dimension.name} needs a note.`);
+    }
+
+    if (summary.length > 1200) errors.push("Summary is too long.");
+    if (errors.length) return;
+
+    const overall = computeOverall(scores, db, audit.weights_version_id);
+    audit.status = "published";
+    audit.overall_score = overall;
+    audit.tier = tierFor(overall).key;
+    audit.summary = summary || "Audited from the live page with extension evidence.";
+    audit.submitted_at = Date.now();
+    audit.published_at = Date.now();
+    publishedAudit = audit;
+  });
+
+  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  return json({
+    ok: true,
+    audit: publishedAudit,
+    status: "published",
+    overall_score: publishedAudit?.overall_score,
+    tier: publishedAudit ? tierFor(publishedAudit.overall_score).name : undefined,
+    state,
+  });
 }
 
 async function createApplication(request: Request) {
@@ -562,6 +822,13 @@ function adminLogin(request: Request) {
   return json({ ok: true });
 }
 
+async function resetAdminState(request: Request) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  const state = freshDB();
+  await store.set(state);
+  return json({ ok: true, state });
+}
+
 function escapeXml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
 }
@@ -597,12 +864,31 @@ Bun.serve({
   async fetch(request) {
     const url = new URL(request.url);
 
+    if (request.method === "OPTIONS") return emptyCorsResponse();
     if (url.pathname === "/healthz") return json({ ok: true });
     if (url.pathname === "/api/state" && request.method === "GET") return json(await store.get());
     if (url.pathname === "/api/applications" && request.method === "POST") return createApplication(request);
     if (url.pathname === "/api/reaudits" && request.method === "POST") return createReaudit(request);
     if (url.pathname === "/api/admin/login" && request.method === "POST") return adminLogin(request);
     if (url.pathname === "/api/admin/state" && request.method === "POST") return saveAdminState(request);
+    if (url.pathname === "/api/admin/reset" && request.method === "POST") return resetAdminState(request);
+    if (url.pathname === "/api/extension/login" && request.method === "POST") return extensionLogin(request);
+    if (url.pathname === "/api/extension/bootstrap" && request.method === "GET") return extensionBootstrapRoute(request);
+    if (url.pathname === "/api/extension/brands/resolve" && request.method === "POST") return extensionResolveBrand(request);
+    if (url.pathname === "/api/extension/audits" && request.method === "POST") return extensionCreateAudit(request);
+
+    const extensionAuditMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)$/);
+    if (extensionAuditMatch && request.method === "GET") return extensionGetAudit(request, Number(extensionAuditMatch[1]));
+
+    const extensionScoreMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/scores\/(\d+)$/);
+    if (extensionScoreMatch && request.method === "PUT") return extensionSaveScore(request, Number(extensionScoreMatch[1]), Number(extensionScoreMatch[2]));
+
+    const extensionEvidenceMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/evidence$/);
+    if (extensionEvidenceMatch && request.method === "POST") return extensionCreateEvidence(request, Number(extensionEvidenceMatch[1]));
+    if (extensionEvidenceMatch && request.method === "GET") return extensionListEvidence(request, Number(extensionEvidenceMatch[1]));
+
+    const extensionSubmitMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/submit$/);
+    if (extensionSubmitMatch && request.method === "POST") return extensionSubmitAudit(request, Number(extensionSubmitMatch[1]));
 
     const badgeMatch = url.pathname.match(/^\/badge-(\d+)\.svg$/);
     if (badgeMatch) return badgeSvg(Number(badgeMatch[1]));

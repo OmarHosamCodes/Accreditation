@@ -148,6 +148,11 @@ table.lb tbody tr:hover td{color:var(--txt)}
 .bar{height:6px;background:var(--surf2);border-radius:20px;margin-top:10px;overflow:hidden}
 .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--acc));border-radius:20px;transition:width .6s cubic-bezier(.2,.7,.2,1)}
 .dimnote{font-size:13px;color:var(--txt3);margin-top:8px;font-family:'Instrument Serif',serif;font-size:15px}
+.evlist{display:grid;gap:8px;margin-top:10px}
+.evitem{border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(255,255,255,.035);padding:10px 12px}
+.evitem .evtop{display:flex;justify-content:space-between;gap:10px;color:var(--txt3);font-family:'Geist Mono',monospace;font-size:10.5px;margin-bottom:4px}
+.evitem p{font-size:13px;color:var(--txt2);margin:0}
+.evitem .evt{font-size:12px;color:var(--txt3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* embed box */
 .embed{border:1px dashed var(--line2);border-radius:var(--r);background:var(--bg2);padding:16px;margin-top:18px}
@@ -244,13 +249,9 @@ footer{border-top:1px solid var(--line);padding:44px 0;margin-top:48px}
 .login-card .brand .seal{width:30px;height:30px;border-radius:9px}
 .empty{text-align:center;padding:54px 20px;color:var(--txt3);font-weight:400}
 .empty i{font-size:38px;display:block;margin-bottom:14px;opacity:.5}
-.demo-note{background:var(--bg2);color:var(--txt3);font-size:11.5px;font-weight:400;text-align:center;padding:8px;font-family:'Geist Mono',monospace;letter-spacing:.02em;border-bottom:1px solid var(--line)}
-.demo-note b{color:var(--acc);font-weight:500}
 </style>
 </head>
 <body>
-
-<div class="demo-note" id="demoNote">Demo build · data saved in your browser only · auditor login <b>roaster / roast123</b></div>
 
 <!-- ================= PUBLIC APP ================= -->
 <div id="publicApp">
@@ -350,38 +351,9 @@ function freshDB(){
     rubric_versions:[{id:1,created_at:Date.now(),notes:'Initial rubric v1'}],
     rubric_anchors:{1:anchors},
     weights_versions:[{id:1, weights:Object.fromEntries(cats.map(c=>[c.key,c.weight]))}],
-    brands:[], applications:[], audits:[], audit_scores:{}, nextId:1
+    brands:[], applications:[], audits:[], audit_scores:{}, evidence_pins:[], nextId:1
   };
-  seedDemo(db);
   return db;
-}
-function seedDemo(db){
-  const demo=[
-    ['Lumen Skincare','ig','@lumenskin','skincare.example.com','D2C beauty',[9,9,8,8,9,8,8,9,8,7,8,9,8,9,8,8]],
-    ['Forge & Co','ig','@forgeandco','forge.example.com','Menswear',[8,8,7,7,8,7,7,8,7,6,7,8,7,8,7,7]],
-    ['Helio Coffee','ig','@heliocoffee','helio.example.com','Specialty coffee',[7,8,7,7,7,6,7,7,8,7,7,6,6,6,7,7]],
-    ['Northwind Realty','fb','northwindrealty','northwind.example.com','Real estate',[6,6,6,5,6,5,6,6,5,5,5,6,6,5,6,6]],
-    ['BiteBox Meals','ig','@biteboxmeals','bitebox.example.com','Meal prep',[7,6,6,6,6,6,6,6,6,5,6,7,6,7,6,6]],
-    ['Apex Fitness','fb','apexfitnesshub','apex.example.com','Gym',[5,5,4,5,5,5,5,5,4,4,4,5,4,4,5,5]],
-    ['Cloudbase SaaS','ig','@cloudbasehq','cloudbase.example.com','B2B SaaS',[8,7,7,6,7,6,6,7,5,5,5,7,7,6,7,7]],
-    ['Petal & Stem','ig','@petalstem','petalstem.example.com','Florist',[6,7,6,6,5,5,5,6,7,7,6,6,5,5,6,7]],
-  ];
-  demo.forEach((d,bi)=>{
-    const bid=db.nextId++;
-    db.brands.push({id:bid,name:d[0],platform:d[1],handle:d[2],url:'https://'+d[3],contact_email:'team@'+d[3],niche:d[4],created_at:Date.now()-bi*86400000});
-    const aid=db.nextId++;
-    const scores=d[5];
-    const overall=computeOverall(scores.map((s,i)=>({dim_id:i+1,score:s})),db,1,1);
-    db.audits.push({id:aid,brand_id:bid,auditor:'Roaster',rubric_version_id:1,weights_version_id:1,status:'published',overall_score:overall,tier:tierFor(overall).key,summary:'Solid presence with clear strengths; see per-dimension notes for the roast.',published_at:Date.now()-bi*86400000,created_at:Date.now()-bi*86400000});
-    db.audit_scores[aid]=scores.map((s,i)=>({dim_id:i+1,score:s,note:''}));
-  });
-  // a couple of pending applications
-  const b1=db.nextId++;
-  db.brands.push({id:b1,name:'Verde Wellness',platform:'ig',handle:'@verdewellness',url:'https://verde.example.com',contact_email:'hi@verde.example.com',niche:'Wellness',created_at:Date.now()});
-  db.applications.push({id:db.nextId++,brand_id:b1,type:'new',status:'pending',changes_note:'',created_at:Date.now()-3600000,why:'We want third-party proof our content is working.'});
-  const b2=db.nextId++;
-  db.brands.push({id:b2,name:'Stack Studios',platform:'fb',handle:'stackstudios',url:'https://stack.example.com',contact_email:'team@stack.example.com',niche:'Design agency',created_at:Date.now()});
-  db.applications.push({id:db.nextId++,brand_id:b2,type:'new',status:'pending',changes_note:'',created_at:Date.now()-7200000,why:'Pitching enterprise clients, need a credibility badge.'});
 }
 
 let DB=null;
@@ -471,6 +443,10 @@ function latestAuditByBrand(){
   return Object.values(map);
 }
 function brand(id){return DB.brands.find(b=>b.id===id);}
+function auditEvidence(id,dimId){
+  const pins=DB.evidence_pins||[];
+  return pins.filter(p=>p.audit_id===id&&(!dimId||p.dim_id===dimId)&&p.visibility!=='private');
+}
 
 function viewHome(){
   const audits=latestAuditByBrand().sort((a,b)=>b.overall_score-a.overall_score);
@@ -504,7 +480,7 @@ function viewHome(){
     <div class="sec-h">Top of the board</div>
     <h2 class="big" style="margin-bottom:24px">Currently leading</h2>
     <table class="lb"><thead><tr><th>#</th><th>Brand</th><th>Platform</th><th>Tier</th><th>Score</th></tr></thead><tbody>
-    ${top.map((a,i)=>{const b=brand(a.brand_id);const t=tierFor(a.overall_score);return `<tr onclick="go('audit',${a.id})"><td class="rank">${i+1}</td><td><b>${esc(b.name)}</b><div class="qmeta">${esc(b.niche)}</div></td><td><span class="pf">${b.platform.toUpperCase()}</span></td><td><span class="tierbadge ${t.cls}"><span class="tdot ${t.dcls}"></span>${t.name}</span></td><td class="scorecell">${a.overall_score}</td></tr>`;}).join('')}
+    ${top.length?top.map((a,i)=>{const b=brand(a.brand_id);const t=tierFor(a.overall_score);return `<tr onclick="go('audit',${a.id})"><td class="rank">${i+1}</td><td><b>${esc(b.name)}</b><div class="qmeta">${esc(b.niche)}</div></td><td><span class="pf">${b.platform.toUpperCase()}</span></td><td><span class="tierbadge ${t.cls}"><span class="tdot ${t.dcls}"></span>${t.name}</span></td><td class="scorecell">${a.overall_score}</td></tr>`;}).join(''):`<tr><td colspan="5" class="empty"><i class="ti ti-clipboard-check"></i>No published audits yet. New results will appear here after the first audit is published.</td></tr>`}
     </tbody></table>
     <div style="margin-top:18px"><a class="btn sm" onclick="go('leaderboard')">Full leaderboard \u2192</a></div>
   </div></section>
@@ -605,7 +581,7 @@ function viewAudit(id){
         ${breakdown.map(bd=>{
           const w=activeWeights(DB,a.weights_version_id||1)[bd.cat.key];
           return `<div class="catblock"><div class="cbh"><h3>${esc(bd.cat.name)} <span class="mono" style="font-size:12px;color:var(--txt3)">${w}% wt</span></h3><div class="cbs">${bd.avg.toFixed(1)}/10</div></div>
-          ${bd.rows.map(r=>`<div class="dimrow"><div class="dimtop"><span class="dn">${esc(r.dim.name)}</span><span class="ds">${r.score}/10</span></div><div class="bar"><i style="width:${r.score*10}%"></i></div>${r.note?`<div class="dimnote">\u201c${esc(r.note)}\u201d</div>`:''}</div>`).join('')}
+          ${bd.rows.map(r=>{const ev=auditEvidence(a.id,r.dim.id);return `<div class="dimrow"><div class="dimtop"><span class="dn">${esc(r.dim.name)}</span><span class="ds">${r.score}/10</span></div><div class="bar"><i style="width:${r.score*10}%"></i></div>${r.note?`<div class="dimnote">\u201c${esc(r.note)}\u201d</div>`:''}${ev.length?`<div class="evlist">${ev.map((p,i)=>`<div class="evitem"><div class="evtop"><span>Evidence #${i+1}</span><span>${esc(p.visibility)}</span></div><p>${esc(p.note)}</p>${p.element_text?`<div class="evt">${esc(p.element_text)}</div>`:''}</div>`).join('')}</div>`:''}</div>`;}).join('')}
           </div>`;}).join('')}
       </div>
     </div>
@@ -639,7 +615,7 @@ function viewApply(){
     <p class="lede" style="font-size:17px;max-width:58ch;margin-bottom:26px">No account needed. We\u2019ll review your application, run the 16-dimension audit, and publish a permanent, embeddable result \u2014 whatever the score.</p>
     <div id="applyNotice"></div>
     <div class="form" id="applyForm">
-      <div class="field"><label>Brand name</label><input id="ap_name" placeholder="e.g. Lumen Skincare"></div>
+      <div class="field"><label>Brand name</label><input id="ap_name" placeholder="e.g. Your Brand"></div>
       <div class="field"><label>Platform</label><select id="ap_plat"><option value="ig">Instagram</option><option value="fb">Facebook</option></select></div>
       <div class="field"><label>Profile URL</label><input id="ap_url" placeholder="https://instagram.com/yourbrand"><div class="hint">Must be a facebook.com or instagram.com link.</div></div>
       <div class="field"><label>Contact email</label><input id="ap_email" placeholder="you@brand.com"></div>
@@ -750,10 +726,9 @@ function loginScreen(){
     <div class="brand" style="font-size:20px;margin-bottom:6px"><span class="seal">A</span> The Accreditation</div>
     <p class="qmeta" style="margin-bottom:22px">Auditor &amp; admin sign-in</p>
     <div id="loginErr"></div>
-    <div class="field"><label>Username</label><input id="lg_user" placeholder="roaster" value="roaster"></div>
-    <div class="field"><label>Password</label><input id="lg_pass" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022" value="roast123"></div>
+    <div class="field"><label>Username</label><input id="lg_user" placeholder="Username" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="lg_pass" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022" autocomplete="current-password"></div>
     <button class="btn acc" style="width:100%;justify-content:center" onclick="adminLogin()"><i>\u25B8</i> Sign in</button>
-    <p class="qmeta" style="text-align:center;margin-top:16px">Demo: <span class="mono">roaster / roast123</span></p>
     <p style="text-align:center;margin-top:8px"><a class="mono" style="font-size:12px;cursor:pointer" onclick="go('home')">\u2190 back to public site</a></p>
   </div></div>`;
 }

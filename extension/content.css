@@ -1,0 +1,246 @@
+#accred-toolbar,
+#accred-toolbar *,
+.accred-pin {
+  box-sizing: border-box;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#accred-toolbar {
+  position: fixed;
+  z-index: 2147483647;
+  right: 18px;
+  top: 84px;
+  width: 360px;
+  max-height: calc(100vh - 104px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 10px;
+  background: rgba(11, 12, 15, .94);
+  color: #f2f3f5;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(16px);
+}
+
+#accred-toolbar.accred-collapsed {
+  width: auto;
+  overflow: hidden;
+}
+
+#accred-toolbar button,
+#accred-toolbar input,
+#accred-toolbar select,
+#accred-toolbar textarea {
+  font: inherit;
+}
+
+.accred-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.accred-seal {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #c6ff3d;
+  color: #0a0b0d;
+  font-weight: 900;
+}
+
+.accred-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.accred-title strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.accred-title span {
+  display: block;
+  overflow: hidden;
+  color: #9aa0aa;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accred-icon {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .06);
+  color: #f2f3f5;
+  cursor: pointer;
+}
+
+.accred-body {
+  padding: 12px;
+}
+
+#accred-toolbar.accred-collapsed .accred-body {
+  display: none;
+}
+
+.accred-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.accred-card {
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .045);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.accred-label {
+  display: block;
+  margin: 10px 0 5px;
+  color: #a4a8b2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.accred-input,
+.accred-select,
+.accred-textarea {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  background: #15171c;
+  color: #f2f3f5;
+  padding: 9px;
+}
+
+.accred-textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.accred-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .08);
+  color: #f2f3f5;
+  font-weight: 700;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.accred-btn.primary {
+  border-color: transparent;
+  background: #c6ff3d;
+  color: #0a0b0d;
+}
+
+.accred-btn.danger {
+  border-color: rgba(255, 106, 85, .35);
+  color: #ff8d7d;
+}
+
+.accred-btn.active {
+  border-color: rgba(198, 255, 61, .65);
+  color: #c6ff3d;
+}
+
+.accred-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.accred-progress {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 3px;
+  margin: 8px 0 10px;
+}
+
+.accred-progress span {
+  height: 5px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .12);
+}
+
+.accred-progress span.done {
+  background: #c6ff3d;
+}
+
+.accred-muted {
+  color: #9aa0aa;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.accred-scoreline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accred-scoreline input {
+  flex: 1;
+}
+
+.accred-scoreline output {
+  min-width: 34px;
+  text-align: right;
+  color: #c6ff3d;
+  font-weight: 900;
+}
+
+.accred-evidence-list {
+  display: grid;
+  gap: 6px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.accred-evidence-item {
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  padding: 8px;
+  color: #d7dae1;
+  font-size: 12px;
+}
+
+.accred-pin {
+  position: fixed;
+  z-index: 2147483646;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #0a0b0d;
+  border-radius: 999px;
+  background: #c6ff3d;
+  color: #0a0b0d;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  transform: translate(-50%, -50%);
+}
+
+body.accred-pin-mode {
+  cursor: crosshair !important;
+}
+
+body.accred-pin-mode * {
+  cursor: crosshair !important;
+}

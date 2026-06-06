@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Accreditation Audit Toolbar",
+  "description": "Score Instagram and Facebook brand pages with pinned evidence and publish to the Accreditation leaderboard.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Accreditation",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.railway.app/*",
+    "https://*.up.railway.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.instagram.com/*",
+        "https://instagram.com/*",
+        "https://www.facebook.com/*",
+        "https://facebook.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

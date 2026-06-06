@@ -24,6 +24,27 @@ PORT=3000
 
 `DATABASE_URL` is supplied by Railway Postgres in production.
 
+## Browser Extension Toolbar
+
+The unpacked Chrome/Edge extension lives in `extension/`.
+
+1. Start the API with `bun run dev`.
+2. Open `chrome://extensions`.
+3. Enable Developer mode.
+4. Choose "Load unpacked" and select the `extension/` folder.
+5. Open the extension popup, set the API base URL, username, and password.
+6. Visit an Instagram or Facebook brand page and use the injected toolbar to start an audit, score metrics, add evidence pins, and publish to the leaderboard.
+
+Default local settings:
+
+```bash
+API base URL=http://localhost:3000
+Username=roaster
+Password=change-me
+```
+
+For production, add the deployed API origin to `extension/manifest.json` under `host_permissions`, then reload the unpacked extension.
+
 ## Railway
 
 ```bash
