@@ -12,6 +12,9 @@
   tooltip.id = "accred-tooltip";
   document.documentElement.appendChild(tooltip);
 
+  const MOBILE_QUERY = "(max-width: 640px), (pointer: coarse) and (max-width: 820px)";
+  const DEFAULT_PUBLISH_SUMMARY = "Audited from the live page with extension evidence.";
+
   const state = {
     collapsed: false,
     loading: false,
@@ -28,8 +31,12 @@
     pendingElement: null,
     metricMenuOpen: false,
     publishedUrl: "",
+    mobileSection: "score",
+    publishOpen: false,
+    publishSummary: DEFAULT_PUBLISH_SUMMARY,
     mounted: false
   };
+  let lastMobileSurface = null;
 
   function detectPage() {
     const host = location.hostname;
@@ -65,8 +72,36 @@
     });
   }
 
+  function isMobileSurface() {
+    return window.matchMedia?.(MOBILE_QUERY).matches || window.innerWidth <= 640;
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function setMobileSection(section) {
+    if (!["score", "metrics", "evidence"].includes(section)) return;
+    state.mobileSection = section;
+    if (section !== "metrics") state.metricMenuOpen = false;
+    render();
+  }
+
+  function closeTransientPanels() {
+    state.metricMenuOpen = false;
+    state.publishOpen = false;
+  }
+
+  function syncViewportClass() {
+    const classes = [];
+    if (state.collapsed) classes.push("accred-collapsed");
+    if (isMobileSurface()) classes.push("accred-mobile");
+    if (state.pinMode) classes.push("accred-pin-active");
+    root.className = classes.join(" ");
+  }
+
   function animateRender() {
-    if (!window.gsap) return;
+    if (!window.gsap || prefersReducedMotion()) return;
     if (!state.mounted) {
       window.gsap.fromTo(root, { autoAlpha: 0, y: 14, scale: .985 }, { autoAlpha: 1, y: 0, scale: 1, duration: .28, ease: "power3.out" });
       state.mounted = true;
@@ -92,6 +127,7 @@
   function setSelectedDim(id) {
     state.selectedDimId = Number(id);
     state.metricMenuOpen = false;
+    state.mobileSection = "score";
     if (state.pendingEvidence && state.pendingEvidence.dim_id !== Number(id)) {
       state.pendingEvidence = null;
       state.pendingElement = null;
@@ -154,9 +190,9 @@
     const label = dim ? `${current + 1}/${dims.length} ${dim.name}` : "Choose metric";
     return `
       <div class="accred-metric-nav">
-        <button class="accred-icon-btn" id="accred-prev-metric" data-tip="Previous metric">${icon("left")}</button>
-        <button class="accred-metric-current" id="accred-open-metrics">${esc(label)}</button>
-        <button class="accred-icon-btn" id="accred-next-metric" data-tip="Next metric">${icon("right")}</button>
+        <button class="accred-icon-btn" id="accred-prev-metric" data-tip="Previous metric" aria-label="Previous metric">${icon("left")}</button>
+        <button class="accred-metric-current" id="accred-open-metrics" aria-expanded="${state.metricMenuOpen ? "true" : "false"}" aria-label="Choose metric">${esc(label)}</button>
+        <button class="accred-icon-btn" id="accred-next-metric" data-tip="Next metric" aria-label="Next metric">${icon("right")}</button>
       </div>
       ${state.metricMenuOpen ? renderMetricMenu() : ""}
     `;
@@ -173,7 +209,8 @@
             ${dims.map((dim) => {
               const count = evidenceFor(dim.id).length;
               const score = state.scores.find((item) => item.dim_id === dim.id);
-              return `<button class="accred-metric-option ${dim.id === Number(state.selectedDimId) ? "active" : ""}" data-dim-id="${dim.id}">
+              const active = dim.id === Number(state.selectedDimId);
+              return `<button class="accred-metric-option ${active ? "active" : ""}" data-dim-id="${dim.id}" aria-current="${active ? "true" : "false"}">
                 <span>${esc(dim.name)}</span>
                 <b>${score ? `${score.score}/10` : "-"}${count ? ` / ${count}` : ""}</b>
               </button>`;
@@ -190,7 +227,7 @@
       <div class="accred-stars" data-value="${current}">
         ${Array.from({ length: 10 }, (_, index) => {
           const score = index + 1;
-          return `<button class="accred-star ${score <= current ? "on" : ""}" data-score="${score}" data-tip="${score}/10" aria-label="Score ${score} out of 10">&#9733;</button>`;
+          return `<button class="accred-star ${score <= current ? "on" : ""}" data-score="${score}" data-tip="${score}/10" aria-label="Score ${score} out of 10" aria-pressed="${score === current ? "true" : "false"}">&#9733;</button>`;
         }).join("")}
         <output id="accred-score-out">${current}/10</output>
       </div>
@@ -205,7 +242,7 @@
       ["high", "High confidence", "high"]
     ];
     return `<div class="accred-confidence-buttons" data-value="${esc(current)}">
-      ${items.map(([level, label, iconName]) => `<button class="accred-icon-btn confidence ${current === level ? "active" : ""}" data-confidence="${level}" data-tip="${label}" aria-label="${label}">${icon(iconName)}</button>`).join("")}
+      ${items.map(([level, label, iconName]) => `<button class="accred-icon-btn confidence ${current === level ? "active" : ""}" data-confidence="${level}" data-tip="${label}" aria-label="${label}" aria-pressed="${current === level ? "true" : "false"}">${icon(iconName)}</button>`).join("")}
     </div>`;
   }
 
@@ -221,11 +258,13 @@
 
   function render() {
     const page = detectPage();
-    root.className = state.collapsed ? "accred-collapsed" : "";
+    syncViewportClass();
+    lastMobileSurface = isMobileSurface();
     const dim = selectedDim();
     const score = selectedScore();
     const done = completion();
     const evidence = dim ? evidenceFor(dim.id) : [];
+    const collapseLabel = state.collapsed ? "Expand Accreditation toolbar" : "Collapse Accreditation toolbar";
 
     root.innerHTML = `
       <div class="accred-head">
@@ -234,8 +273,9 @@
           <strong>Accreditation Toolbar</strong>
           <span>${esc(page.name)} - ${esc(page.handle)}</span>
         </div>
-        <button class="accred-icon" id="accred-collapse" title="Collapse">${state.collapsed ? "+" : "-"}</button>
+        <button class="accred-icon" id="accred-collapse" title="${collapseLabel}" aria-label="${collapseLabel}">${state.collapsed ? "+" : "-"}</button>
       </div>
+      ${state.pinMode && isMobileSurface() ? renderMobilePinHint() : ""}
       <div class="accred-body">
         ${state.error ? `<div class="accred-card"><span class="accred-muted">${esc(state.error)}</span></div>` : ""}
         ${state.publishedUrl ? renderShareCard() : ""}
@@ -247,6 +287,15 @@
     renderPins();
     renderComposer();
     requestAnimationFrame(animateRender);
+  }
+
+  function renderMobilePinHint() {
+    return `
+      <div class="accred-mobile-pin-hint">
+        <span>Tap page to pin evidence</span>
+        <button class="accred-btn" id="accred-cancel-pin">Cancel</button>
+      </div>
+    `;
   }
 
   function renderLoginState(page) {
@@ -269,13 +318,18 @@
         <div class="accred-progress">${done.map((isDone) => `<span class="${isDone ? "done" : ""}"></span>`).join("")}</div>
         <div class="accred-row">
           <button class="accred-btn primary" id="accred-start">${state.audit ? "Resume audit" : "Start audit"}</button>
-          <button class="accred-btn ${state.pinMode ? "active" : ""}" id="accred-pin-toggle" ${!state.audit ? "disabled" : ""}>Pin</button>
+          <button class="accred-btn ${state.pinMode ? "active" : ""}" id="accred-pin-toggle" aria-pressed="${state.pinMode ? "true" : "false"}" ${!state.audit ? "disabled" : ""}>Pin</button>
           <button class="accred-btn" id="accred-publish" ${!state.audit || state.audit.status === "published" ? "disabled" : ""}>Publish</button>
         </div>
+        ${state.publishOpen ? renderPublishComposer() : ""}
       </div>
       ${state.audit && state.bootstrap ? `
-        ${renderMetricNav(dim)}
+        ${renderMobileTabs()}
+        <div class="accred-mobile-panel ${state.mobileSection === "metrics" ? "active" : ""}" data-mobile-panel="metrics">
+          ${renderMetricNav(dim)}
+        </div>
         ${dim ? `
+          <div class="accred-mobile-panel ${state.mobileSection === "score" ? "active" : ""}" data-mobile-panel="score">
           <div class="accred-card accred-score-card">
             <div class="accred-card-title">${esc(dim.name)}</div>
             <div class="accred-muted">${esc(dim.description)}</div>
@@ -290,14 +344,43 @@
             </div>
             ${anchorsHtml(dim)}
           </div>
+          </div>
+          <div class="accred-mobile-panel ${state.mobileSection === "evidence" ? "active" : ""}" data-mobile-panel="evidence">
           <div class="accred-card">
             <div class="accred-card-title">Evidence (${evidence.length})</div>
             <div class="accred-evidence-list">
               ${evidence.length ? evidence.map((pin, index) => `<div class="accred-evidence-item"><strong>#${index + 1}</strong> ${esc(pin.note)}<br><span class="accred-muted">${esc(pin.element_text || pin.page_url)}</span></div>`).join("") : `<div class="accred-muted">Turn on pin mode and click the page to attach evidence.</div>`}
             </div>
           </div>
+          </div>
         ` : ""}
       ` : ""}
+    `;
+  }
+
+  function renderMobileTabs() {
+    const tabs = [
+      ["score", "Score"],
+      ["metrics", "Metrics"],
+      ["evidence", "Evidence"]
+    ];
+    return `
+      <div class="accred-mobile-tabs" role="tablist" aria-label="Audit sections">
+        ${tabs.map(([section, label]) => `<button class="accred-mobile-tab ${state.mobileSection === section ? "active" : ""}" data-mobile-section="${section}" role="tab" aria-selected="${state.mobileSection === section ? "true" : "false"}">${label}</button>`).join("")}
+      </div>
+    `;
+  }
+
+  function renderPublishComposer() {
+    return `
+      <div class="accred-publish-compose">
+        <label class="accred-label" for="accred-publish-summary">Audit summary</label>
+        <textarea class="accred-textarea" id="accred-publish-summary" placeholder="Summarize the audit">${esc(state.publishSummary || DEFAULT_PUBLISH_SUMMARY)}</textarea>
+        <div class="accred-row accred-actions">
+          <button class="accred-btn primary" id="accred-confirm-publish">Publish audit</button>
+          <button class="accred-btn" id="accred-cancel-publish">Cancel</button>
+        </div>
+      </div>
     `;
   }
 
@@ -318,7 +401,7 @@
     const pending = state.pendingEvidence;
     const dim = selectedDim();
     if (!pending || !dim) {
-      composer.classList.remove("show");
+      composer.classList.remove("show", "accred-mobile-compose");
       composer.innerHTML = "";
       return;
     }
@@ -345,14 +428,22 @@
         </div>
       </div>
     `;
+    composer.classList.toggle("accred-mobile-compose", isMobileSurface());
     composer.classList.add("show");
     positionComposer();
     bindComposer();
-    if (window.gsap) window.gsap.fromTo(composer, { autoAlpha: 0, y: 8, scale: .985 }, { autoAlpha: 1, y: 0, scale: 1, duration: .2, ease: "power2.out" });
+    if (window.gsap && !prefersReducedMotion()) window.gsap.fromTo(composer, { autoAlpha: 0, y: 8, scale: .985 }, { autoAlpha: 1, y: 0, scale: 1, duration: .2, ease: "power2.out" });
   }
 
   function positionComposer() {
     if (!state.pendingEvidence || !composer.classList.contains("show")) return;
+    composer.classList.toggle("accred-mobile-compose", isMobileSurface());
+    if (isMobileSurface()) {
+      composer.style.left = "";
+      composer.style.top = "";
+      composer.style.width = "";
+      return;
+    }
     const position = pinPosition(state.pendingEvidence);
     const margin = 12;
     const width = Math.min(286, Math.max(0, window.innerWidth - margin * 2));
@@ -368,6 +459,8 @@
     composer.querySelector("#accred-cancel-evidence")?.addEventListener("click", () => {
       state.pendingEvidence = null;
       state.pendingElement = null;
+      state.mobileSection = "evidence";
+      if (isMobileSurface()) state.collapsed = false;
       render();
     });
     composer.querySelector("#accred-evidence-note")?.focus();
@@ -378,14 +471,31 @@
       state.collapsed = !state.collapsed;
       render();
     });
+    root.querySelector("#accred-cancel-pin")?.addEventListener("click", () => {
+      state.pinMode = false;
+      document.body.classList.remove("accred-pin-mode");
+      state.collapsed = false;
+      render();
+    });
     root.querySelector("#accred-connect")?.addEventListener("click", connect);
     root.querySelector("#accred-start")?.addEventListener("click", startAudit);
     root.querySelector("#accred-pin-toggle")?.addEventListener("click", () => {
       state.pinMode = !state.pinMode;
       document.body.classList.toggle("accred-pin-mode", state.pinMode);
+      if (state.pinMode && isMobileSurface()) {
+        closeTransientPanels();
+        state.collapsed = true;
+      } else if (!state.pinMode && isMobileSurface()) {
+        state.collapsed = false;
+      }
       render();
     });
-    root.querySelector("#accred-publish")?.addEventListener("click", publishAudit);
+    root.querySelector("#accred-publish")?.addEventListener("click", openPublishComposer);
+    root.querySelector("#accred-confirm-publish")?.addEventListener("click", submitPublishAudit);
+    root.querySelector("#accred-cancel-publish")?.addEventListener("click", () => {
+      state.publishOpen = false;
+      render();
+    });
     root.querySelector("#accred-copy-link")?.addEventListener("click", copyPublishedLink);
     root.querySelector("#accred-open-link")?.addEventListener("click", () => {
       if (state.publishedUrl) window.open(state.publishedUrl, "_blank", "noopener,noreferrer");
@@ -398,6 +508,9 @@
     });
     root.querySelectorAll(".accred-metric-option").forEach((button) => {
       button.addEventListener("click", () => setSelectedDim(button.dataset.dimId));
+    });
+    root.querySelectorAll(".accred-mobile-tab").forEach((button) => {
+      button.addEventListener("click", () => setMobileSection(button.dataset.mobileSection));
     });
     root.querySelectorAll(".accred-star").forEach((button) => {
       button.addEventListener("mouseenter", () => previewStars(Number(button.dataset.score)));
@@ -421,6 +534,7 @@
   }
 
   function showTooltip(element) {
+    if (isMobileSurface()) return;
     const text = element?.dataset?.tip;
     if (!text) return;
     tooltip.textContent = text;
@@ -432,7 +546,7 @@
     const top = Math.max(rect.top - tooltipRect.height - 8, margin);
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
-    if (window.gsap) window.gsap.fromTo(tooltip, { autoAlpha: 0, y: 3 }, { autoAlpha: 1, y: 0, duration: .12, ease: "power1.out" });
+    if (window.gsap && !prefersReducedMotion()) window.gsap.fromTo(tooltip, { autoAlpha: 0, y: 3 }, { autoAlpha: 1, y: 0, duration: .12, ease: "power1.out" });
   }
 
   function hideTooltip() {
@@ -445,6 +559,7 @@
     holder.querySelectorAll(".accred-star").forEach((button) => {
       button.classList.toggle("on", Number(button.dataset.score) <= value);
       button.classList.toggle("preview", preview && Number(button.dataset.score) <= value);
+      button.setAttribute("aria-pressed", Number(button.dataset.score) === value ? "true" : "false");
     });
     const output = holder.querySelector("#accred-score-out");
     if (output) output.textContent = `${value}/10`;
@@ -452,7 +567,7 @@
 
   function previewStars(value) {
     paintStars(value, true);
-    if (!window.gsap) return;
+    if (!window.gsap || prefersReducedMotion()) return;
     const stars = Array.from(root.querySelectorAll(".accred-star")).filter((button) => Number(button.dataset.score) <= value);
     window.gsap.killTweensOf(root.querySelectorAll(".accred-star"));
     window.gsap.to(stars, { scale: 1.08, duration: .12, stagger: .006, ease: "power1.out" });
@@ -461,7 +576,7 @@
   function resetStars() {
     const holder = root.querySelector(".accred-stars");
     paintStars(Number(holder?.dataset.value) || 5);
-    if (window.gsap) window.gsap.to(root.querySelectorAll(".accred-star"), { scale: 1, duration: .1, ease: "power1.out" });
+    if (window.gsap && !prefersReducedMotion()) window.gsap.to(root.querySelectorAll(".accred-star"), { scale: 1, duration: .1, ease: "power1.out" });
   }
 
   function setStarScore(value) {
@@ -469,7 +584,7 @@
     if (!holder) return;
     holder.dataset.value = String(value);
     paintStars(value);
-    if (window.gsap) window.gsap.fromTo(holder.querySelectorAll(".accred-star.on"), { scale: .96 }, { scale: 1, duration: .14, stagger: .006, ease: "power1.out" });
+    if (window.gsap && !prefersReducedMotion()) window.gsap.fromTo(holder.querySelectorAll(".accred-star.on"), { scale: .96 }, { scale: 1, duration: .14, stagger: .006, ease: "power1.out" });
   }
 
   function setConfidence(value) {
@@ -477,7 +592,8 @@
     if (!holder || !value) return;
     holder.dataset.value = value;
     holder.querySelectorAll(".confidence").forEach((button) => button.classList.toggle("active", button.dataset.confidence === value));
-    if (window.gsap) window.gsap.fromTo(holder.querySelector(".confidence.active"), { scale: .9 }, { scale: 1, duration: .18, ease: "back.out(2)" });
+    holder.querySelectorAll(".confidence").forEach((button) => button.setAttribute("aria-pressed", button.dataset.confidence === value ? "true" : "false"));
+    if (window.gsap && !prefersReducedMotion()) window.gsap.fromTo(holder.querySelector(".confidence.active"), { scale: .9 }, { scale: 1, duration: .18, ease: "back.out(2)" });
   }
 
   async function connect() {
@@ -541,7 +657,7 @@
       state.audit = data.audit || state.audit;
       await animateScoreSaved();
       if (wasLastMetric) {
-        await publishAudit();
+        openPublishComposer();
         return;
       }
       const dims = state.bootstrap?.dimensions || [];
@@ -559,7 +675,7 @@
   }
 
   function animateScoreSaved() {
-    if (!window.gsap) return Promise.resolve();
+    if (!window.gsap || prefersReducedMotion()) return Promise.resolve();
     const card = root.querySelector(".accred-score-card");
     const button = root.querySelector("#accred-save-score");
     return new Promise((resolve) => {
@@ -592,22 +708,34 @@
       state.pendingEvidence = null;
       state.pendingElement = null;
       state.audit = data.audit || state.audit;
+      state.mobileSection = "evidence";
+      if (isMobileSurface()) state.collapsed = false;
     } catch (error) {
       state.error = error.message;
     }
     render();
   }
 
-  async function publishAudit() {
+  function openPublishComposer() {
     if (!state.audit || state.audit.status === "published") return;
-    const summary = prompt("Overall audit summary", "Audited from the live page with extension evidence.");
-    if (summary === null) return;
+    state.publishSummary ||= DEFAULT_PUBLISH_SUMMARY;
+    state.publishOpen = true;
+    state.collapsed = false;
+    render();
+    root.querySelector("#accred-publish-summary")?.focus();
+  }
+
+  async function submitPublishAudit() {
+    if (!state.audit || state.audit.status === "published") return;
+    const summary = root.querySelector("#accred-publish-summary")?.value?.trim() || DEFAULT_PUBLISH_SUMMARY;
+    state.publishSummary = summary;
     state.error = "";
     try {
       const data = await api("POST", `/api/extension/audits/${state.audit.id}/submit`, { summary });
       state.audit = data.audit || state.audit;
       state.publishedUrl = data.public_url || "";
       state.pinMode = false;
+      state.publishOpen = false;
       document.body.classList.remove("accred-pin-mode");
       state.error = `Published: ${data.overall_score}/100 ${data.tier}`;
     } catch (error) {
@@ -749,6 +877,7 @@
     state.pinMode = false;
     document.body.classList.remove("accred-pin-mode");
     state.pendingElement = target;
+    state.mobileSection = "evidence";
     state.pendingEvidence = {
       dim_id: Number(state.selectedDimId),
       platform: page.platform,
@@ -781,7 +910,7 @@
       el.style.left = `${position.x}px`;
       el.style.top = `${position.y}px`;
       document.documentElement.appendChild(el);
-      if (animate && window.gsap) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
+      if (animate && window.gsap && !prefersReducedMotion()) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
     }
     if (state.pendingEvidence) {
       const el = document.createElement("div");
@@ -792,7 +921,7 @@
       el.style.left = `${position.x}px`;
       el.style.top = `${position.y}px`;
       document.documentElement.appendChild(el);
-      if (animate && window.gsap) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
+      if (animate && window.gsap && !prefersReducedMotion()) window.gsap.fromTo(el, { scale: .55, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .24, ease: "back.out(2)" });
     }
   }
 
@@ -806,6 +935,16 @@
     positionComposer();
   }, true);
   window.addEventListener("resize", () => {
+    renderPins(false);
+    positionComposer();
+    const currentMobileSurface = isMobileSurface();
+    if (currentMobileSurface !== lastMobileSurface) render();
+  });
+  window.visualViewport?.addEventListener("resize", () => {
+    renderPins(false);
+    positionComposer();
+  });
+  window.visualViewport?.addEventListener("scroll", () => {
     renderPins(false);
     positionComposer();
   });
