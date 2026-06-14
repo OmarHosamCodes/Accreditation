@@ -12,9 +12,14 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Extension popups have no reliable viewport; vw units collapse on macOS Chrome. */
+  width: 380px;
+}
+
 body {
-  width: min(100vw, 380px);
-  min-width: min(320px, 100vw);
+  width: 380px;
+  min-width: 380px;
   margin: 0;
   background: var(--bg);
   color: var(--text);

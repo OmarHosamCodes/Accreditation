@@ -24,12 +24,17 @@ function sendMessage(message) {
   return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
 }
 
+function bindInputDirections() {
+  window.AccredTextDirection?.bindTextDirectionAll(document);
+}
+
 async function load() {
   const settings = await storageGet(Object.keys(DEFAULTS));
   const merged = { ...DEFAULTS, ...settings };
   els.apiBase.value = merged.apiBase;
   els.username.value = merged.username;
   els.password.value = merged.password;
+  bindInputDirections();
 }
 
 async function save() {

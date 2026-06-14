@@ -133,7 +133,7 @@ const SEED_DIMS = [
   ["foundation", "Identity Coherence", "Visual + verbal identity consistent across the feed."],
   ["foundation", "Strategic Real Estate", "Bio, link, highlights, pinned content used deliberately."],
   ["exposure", "Hook-to-Value Ratio", "Do openers earn the scroll-stop and pay it off?"],
-  ["exposure", "Pace Consistency", "Steady cadence without dead zones or spam bursts."],
+  ["exposure", "PaC Consistency", "Steady cadence without dead zones or spam bursts."],
   ["exposure", "Overall Brand Exposure", "Reach footprint relative to niche."],
   ["exposure", "Frequency", "Posting volume sufficient to stay top-of-mind."],
   ["influence", "Value Density", "Useful substance per unit of attention spent."],
@@ -152,7 +152,7 @@ const SEED_ANCHORS: Record<string, [string, string, string]> = {
   "Identity Coherence": ["Visuals/voice clash post to post.", "Mostly consistent with occasional drift.", "Unmistakable system; you'd ID it with the logo cropped."],
   "Strategic Real Estate": ["Bio/link/pins empty or wasted.", "Some assets used, others neglected.", "Every fixed asset earns its place and converts."],
   "Hook-to-Value Ratio": ["Hooks absent or clickbait with no payoff.", "Decent hooks, uneven payoff.", "Hooks stop the scroll and the value lands every time."],
-  "Pace Consistency": ["Erratic - famine then flood.", "Roughly regular with gaps.", "Metronomic, reliable rhythm."],
+  "PaC Consistency": ["Erratic - famine then flood.", "Roughly regular with gaps.", "Metronomic, reliable rhythm."],
   "Overall Brand Exposure": ["Near-invisible for the niche.", "Moderate, niche-typical reach.", "Category-leading footprint."],
   Frequency: ["Too sparse to build memory.", "Adequate but could compound faster.", "Optimal volume for the format & audience."],
   "Value Density": ["Filler; little to take away.", "Useful but padded.", "Every post is a keeper - high signal."],
@@ -334,7 +334,7 @@ function json(data: unknown, init: ResponseInit = {}) {
     headers: {
       "cache-control": "no-store",
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+      "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
       "access-control-allow-headers": "authorization,content-type",
       ...(init.headers || {}),
     },
@@ -346,7 +346,7 @@ function emptyCorsResponse() {
     status: 204,
     headers: {
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
+      "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
       "access-control-allow-headers": "authorization,content-type",
     },
   });
@@ -669,6 +669,26 @@ async function extensionCreateEvidence(request: Request, auditId: number) {
   return json({ ok: true, evidence: pin, audit: state.audits.find((item) => item.id === auditId) });
 }
 
+async function extensionDeleteEvidence(request: Request, auditId: number, evidenceId: number) {
+  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  let deleted: EvidencePin | undefined;
+  const state = await store.mutate((db) => {
+    const audit = db.audits.find((item) => item.id === auditId && item.status === "draft");
+    if (!audit) return;
+    const index = db.evidence_pins.findIndex((pin) => pin.id === evidenceId && pin.audit_id === auditId);
+    if (index < 0) return;
+    deleted = db.evidence_pins[index];
+    db.evidence_pins.splice(index, 1);
+    const score = (db.audit_scores[String(auditId)] || []).find((item) => item.dim_id === deleted!.dim_id);
+    if (score) {
+      score.evidence_count = db.evidence_pins.filter((item) => item.audit_id === auditId && item.dim_id === deleted!.dim_id).length;
+    }
+  });
+
+  if (!deleted) return json({ ok: false, errors: ["Draft audit or evidence not found"] }, { status: 404 });
+  return json({ ok: true, evidence_id: evidenceId, audit: state.audits.find((item) => item.id === auditId) });
+}
+
 async function extensionListEvidence(request: Request, auditId: number) {
   if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
   const state = await store.get();
@@ -883,6 +903,11 @@ Bun.serve({
     const extensionEvidenceMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/evidence$/);
     if (extensionEvidenceMatch && request.method === "POST") return extensionCreateEvidence(request, Number(extensionEvidenceMatch[1]));
     if (extensionEvidenceMatch && request.method === "GET") return extensionListEvidence(request, Number(extensionEvidenceMatch[1]));
+
+    const extensionEvidenceDeleteMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/evidence\/(\d+)$/);
+    if (extensionEvidenceDeleteMatch && request.method === "DELETE") {
+      return extensionDeleteEvidence(request, Number(extensionEvidenceDeleteMatch[1]), Number(extensionEvidenceDeleteMatch[2]));
+    }
 
     const extensionSubmitMatch = url.pathname.match(/^\/api\/extension\/audits\/(\d+)\/submit$/);
     if (extensionSubmitMatch && request.method === "POST") return extensionSubmitAudit(request, Number(extensionSubmitMatch[1]));

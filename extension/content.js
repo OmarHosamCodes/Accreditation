@@ -179,7 +179,8 @@
       right: `<polyline points="9 18 15 12 9 6"></polyline>`,
       low: `<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>`,
       medium: `<circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>`,
-      high: `<path d="M20 6 9 17l-5-5"></path><circle cx="12" cy="12" r="9"></circle>`
+      high: `<path d="M20 6 9 17l-5-5"></path><circle cx="12" cy="12" r="9"></circle>`,
+      delete: `<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>`
     };
     return `<svg ${attrs}>${paths[name] || ""}</svg>`;
   }
@@ -289,6 +290,16 @@
     requestAnimationFrame(animateRender);
   }
 
+  function renderEvidenceItem(pin, index) {
+    return `<div class="accred-evidence-item">
+      <div class="accred-evidence-head">
+        <strong>#${index + 1}</strong>
+        <button type="button" class="accred-icon-btn accred-evidence-delete" data-evidence-id="${pin.id}" data-tip="Delete evidence" aria-label="Delete evidence #${index + 1}">${icon("delete")}</button>
+      </div>
+      <div class="accred-evidence-body">${esc(pin.note)}<br><span class="accred-muted">${esc(pin.element_text || pin.page_url)}</span></div>
+    </div>`;
+  }
+
   function renderMobilePinHint() {
     return `
       <div class="accred-mobile-pin-hint">
@@ -349,7 +360,7 @@
           <div class="accred-card">
             <div class="accred-card-title">Evidence (${evidence.length})</div>
             <div class="accred-evidence-list">
-              ${evidence.length ? evidence.map((pin, index) => `<div class="accred-evidence-item"><strong>#${index + 1}</strong> ${esc(pin.note)}<br><span class="accred-muted">${esc(pin.element_text || pin.page_url)}</span></div>`).join("") : `<div class="accred-muted">Turn on pin mode and click the page to attach evidence.</div>`}
+              ${evidence.length ? evidence.map((pin, index) => renderEvidenceItem(pin, index)).join("") : `<div class="accred-muted">Turn on pin mode and click the page to attach evidence.</div>`}
             </div>
           </div>
           </div>
@@ -463,6 +474,7 @@
       if (isMobileSurface()) state.collapsed = false;
       render();
     });
+    window.AccredTextDirection?.bindTextDirectionAll(composer);
     composer.querySelector("#accred-evidence-note")?.focus();
   }
 
@@ -520,7 +532,15 @@
     root.querySelectorAll(".accred-confidence-buttons .confidence").forEach((button) => {
       button.addEventListener("click", () => setConfidence(button.dataset.confidence));
     });
+    root.querySelectorAll(".accred-evidence-delete").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteEvidence(Number(button.dataset.evidenceId));
+      });
+    });
     root.querySelector("#accred-save-score")?.addEventListener("click", saveScore);
+    window.AccredTextDirection?.bindTextDirectionAll(root);
     bindTooltips(root);
   }
 
@@ -685,6 +705,18 @@
         .to(card, { boxShadow: "0 0 0 1px rgba(198,255,61,.42)", duration: .12, ease: "power1.out" }, 0)
         .to(card, { boxShadow: "0 0 0 0 rgba(198,255,61,0)", duration: .18, ease: "power1.out" });
     });
+  }
+
+  async function deleteEvidence(evidenceId) {
+    if (!state.audit || !evidenceId) return;
+    state.error = "";
+    try {
+      await api("DELETE", `/api/extension/audits/${state.audit.id}/evidence/${evidenceId}`);
+      state.evidence = state.evidence.filter((pin) => pin.id !== Number(evidenceId));
+    } catch (error) {
+      state.error = error.message;
+    }
+    render();
   }
 
   async function saveEvidence() {

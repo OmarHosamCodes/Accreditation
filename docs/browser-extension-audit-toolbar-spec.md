@@ -70,7 +70,7 @@ The product uses the existing rubric dimensions and category weights.
 ### Exposure, 20%
 
 - Hook-to-Value Ratio
-- Pace Consistency
+- PaC Consistency
 - Overall Brand Exposure
 - Frequency
 

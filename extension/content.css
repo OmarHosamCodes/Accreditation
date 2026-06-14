@@ -411,6 +411,26 @@
   line-height: 1.4;
 }
 
+.accred-evidence-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.accred-evidence-delete {
+  color: #ff8d7d;
+}
+
+@media (hover: hover) {
+  .accred-evidence-delete:hover {
+    border-color: rgba(255, 106, 85, .45);
+    background: rgba(255, 106, 85, .12);
+    color: #ff6a55;
+  }
+}
+
 .accred-share-card {
   border-color: rgba(198, 255, 61, .34);
   background: rgba(198, 255, 61, .08);
