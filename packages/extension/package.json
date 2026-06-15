@@ -1,0 +1,12 @@
+{
+  "name": "@accreditation/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "cp node_modules/gsap/dist/gsap.min.js ."
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Accreditation · Social Media Audit Bureau</title>
+<meta name="description" content="An independent accreditation for FB & IG brand presences. Audited across 16 dimensions. Earn your tier." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="./src/styles/app.css" />
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+
+<!-- ================= PUBLIC APP ================= -->
+<div id="publicApp">
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a href="#home" class="brand">
+        <span class="seal">A</span> The&nbsp;Accreditation
+      </a>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="navMenu">Menu</button>
+      <nav class="navlinks" id="navMenu" aria-label="Main">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#methodology">Methodology</a>
+        <a href="#apply">Apply</a>
+        <a class="adminlink" href="#admin">Auditor login</a>
+        <a class="cta" href="#apply">Get accredited</a>
+      </nav>
+    </div>
+  </header>
+  <main id="view"></main>
+  <footer>
+    <div class="wrap foot">
+      <div class="brand" style="font-size:18px"><span class="seal" style="width:24px;height:24px;font-size:11px">A</span> The Accreditation</div>
+      <div class="small">An independent audit bureau for FB &amp; IG brand presence. Scores are opinions, formed rigorously.</div>
+    </div>
+  </footer>
+</div>
+
+<!-- ================= ADMIN APP ================= -->
+<div id="adminApp" class="hidden"></div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

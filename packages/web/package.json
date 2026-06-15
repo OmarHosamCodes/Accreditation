@@ -1,0 +1,15 @@
+{
+  "name": "@accreditation/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index.html": "./index.html"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@accreditation/shared": "workspace:*"
+  }
+}

@@ -1,8 +1,18 @@
 # Accreditation
 
-Bun server for the Accreditation artifact in `artifact/index.html`.
+Bun 1.3.x workspace monorepo for the Accreditation platform: API server, web UI, browser extension, and shared domain logic.
 
-## Local Development
+## Project layout
+
+```
+packages/
+  shared/     Types, tiers, scoring, seed data
+  server/     Bun.serve API + HTML route
+  web/        Bun fullstack frontend (index.html + TS/CSS modules)
+  extension/  Chrome MV3 audit toolbar
+```
+
+## Local development
 
 ```bash
 bun install
@@ -11,7 +21,18 @@ bun run dev
 
 Open `http://localhost:3000`.
 
-If `DATABASE_URL` is not set, the server uses in-memory state for local testing. Set `DATABASE_URL` to a Postgres connection string to use persistent shared data locally.
+If `DATABASE_URL` is not set, the server uses in-memory state for local testing. Copy `.env.example` to `.env` and set `DATABASE_URL` for persistent Postgres storage.
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start server with HMR (`bun --hot`) |
+| `bun run start` | Start server |
+| `bun run build` | Production bundle (server + web assets) |
+| `bun run test` | Run tests across packages |
+| `bun run typecheck` | Type-check shared, server, and web modules |
+| `bun run check` | `typecheck` + `build` (CI validation) |
 
 ## Environment
 
@@ -20,18 +41,19 @@ DATABASE_URL=postgres://...
 ADMIN_USERNAME=roaster
 ADMIN_PASSWORD=change-me
 PORT=3000
+NODE_ENV=development
 ```
 
 `DATABASE_URL` is supplied by Railway Postgres in production.
 
-## Browser Extension Toolbar
+## Browser extension toolbar
 
-The unpacked Chrome/Edge extension lives in `extension/`.
+The unpacked Chrome/Edge extension lives in `packages/extension/`.
 
 1. Start the API with `bun run dev`.
 2. Open `chrome://extensions`.
 3. Enable Developer mode.
-4. Choose "Load unpacked" and select the `extension/` folder.
+4. Choose "Load unpacked" and select the `packages/extension/` folder.
 5. Open the extension popup, set the API base URL, username, and password.
 6. Visit an Instagram or Facebook brand page and use the injected toolbar to start an audit, score metrics, add evidence pins, and publish to the leaderboard.
 
@@ -43,7 +65,7 @@ Username=roaster
 Password=change-me
 ```
 
-For production, add the deployed API origin to `extension/manifest.json` under `host_permissions`, then reload the unpacked extension.
+For production, add the deployed API origin to `packages/extension/manifest.json` under `host_permissions`, then reload the unpacked extension.
 
 ## Railway
 
@@ -53,7 +75,7 @@ For production, add the deployed API origin to `extension/manifest.json` under `
 - Start: `bun run start`
 - Health check: `/healthz`
 
-### Deploy or Update Production
+### Deploy or update production
 
 ```bash
 railway login
@@ -83,12 +105,12 @@ It should return:
 {"ok":true}
 ```
 
-### Use the Extension Against Railway
+### Use the extension against Railway
 
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Click "Load unpacked".
-4. Select this repo's `extension/` folder.
+4. Select this repo's `packages/extension/` folder.
 5. Open the extension popup.
 6. Set:
 
