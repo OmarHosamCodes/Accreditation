@@ -13,6 +13,8 @@
   document.documentElement.appendChild(tooltip);
 
   const MOBILE_QUERY = "(max-width: 640px), (pointer: coarse) and (max-width: 820px)";
+  const CONTAINER_DOCK_MAX_WIDTH = 400;
+  const CONTAINER_DOCK_VIEWPORT_RATIO = 0.36;
   const DEFAULT_PUBLISH_SUMMARY = "Audited from the live page with extension evidence.";
 
   const state = {
@@ -34,7 +36,8 @@
     mobileSection: "score",
     publishOpen: false,
     publishSummary: DEFAULT_PUBLISH_SUMMARY,
-    mounted: false
+    mounted: false,
+    containerMode: false
   };
   let lastMobileSurface = null;
 
@@ -76,6 +79,43 @@
     return window.matchMedia?.(MOBILE_QUERY).matches || window.innerWidth <= 640;
   }
 
+  function containerDockWidth() {
+    return Math.min(CONTAINER_DOCK_MAX_WIDTH, window.innerWidth * CONTAINER_DOCK_VIEWPORT_RATIO);
+  }
+
+  function containerModeActive() {
+    return state.containerMode && !isMobileSurface();
+  }
+
+  function pageViewportBounds() {
+    if (!containerModeActive()) {
+      return { left: 0, width: window.innerWidth };
+    }
+    const dockWidth = containerDockWidth();
+    return {
+      left: 0,
+      width: Math.max(0, window.innerWidth - dockWidth)
+    };
+  }
+
+  function loadContainerMode() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get({ containerMode: false }, (stored) => {
+        state.containerMode = Boolean(stored.containerMode);
+        resolve();
+      });
+    });
+  }
+
+  function setContainerMode(enabled) {
+    if (isMobileSurface()) enabled = false;
+    state.containerMode = enabled;
+    chrome.storage.sync.set({ containerMode: enabled });
+    syncViewportClass();
+    positionComposer();
+    render();
+  }
+
   function prefersReducedMotion() {
     return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   }
@@ -97,7 +137,9 @@
     if (state.collapsed) classes.push("accred-collapsed");
     if (isMobileSurface()) classes.push("accred-mobile");
     if (state.pinMode) classes.push("accred-pin-active");
+    if (containerModeActive()) classes.push("accred-container-dock");
     root.className = classes.join(" ");
+    document.documentElement.classList.toggle("accred-container-mode", containerModeActive());
   }
 
   function animateRender() {
@@ -180,7 +222,8 @@
       low: `<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>`,
       medium: `<circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>`,
       high: `<path d="M20 6 9 17l-5-5"></path><circle cx="12" cy="12" r="9"></circle>`,
-      delete: `<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>`
+      delete: `<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>`,
+      container: `<rect x="3" y="4" width="14" height="16" rx="2"></rect><rect x="19" y="7" width="2" height="10" rx="1"></rect>`
     };
     return `<svg ${attrs}>${paths[name] || ""}</svg>`;
   }
@@ -266,6 +309,7 @@
     const done = completion();
     const evidence = dim ? evidenceFor(dim.id) : [];
     const collapseLabel = state.collapsed ? "Expand Accreditation toolbar" : "Collapse Accreditation toolbar";
+    const containerLabel = state.containerMode ? "Exit container mode" : "Enter container mode";
 
     root.innerHTML = `
       <div class="accred-head">
@@ -274,7 +318,8 @@
           <strong>Accreditation Toolbar</strong>
           <span>${esc(page.name)} - ${esc(page.handle)}</span>
         </div>
-        <button class="accred-icon" id="accred-collapse" title="${collapseLabel}" aria-label="${collapseLabel}">${state.collapsed ? "+" : "-"}</button>
+        <button class="accred-icon-btn accred-container-toggle ${state.containerMode ? "active" : ""}" id="accred-container-toggle" data-tip="Container mode" aria-label="${containerLabel}" aria-pressed="${state.containerMode ? "true" : "false"}">${icon("container")}</button>
+        <button class="accred-icon-btn" id="accred-collapse" title="${collapseLabel}" aria-label="${collapseLabel}">${state.collapsed ? "+" : "-"}</button>
       </div>
       ${state.pinMode && isMobileSurface() ? renderMobilePinHint() : ""}
       <div class="accred-body">
@@ -457,8 +502,9 @@
     }
     const position = pinPosition(state.pendingEvidence);
     const margin = 12;
-    const width = Math.min(286, Math.max(0, window.innerWidth - margin * 2));
-    const left = Math.min(Math.max(position.x + 18, margin), window.innerWidth - width - margin);
+    const viewport = pageViewportBounds();
+    const width = Math.min(286, Math.max(0, viewport.width - margin * 2));
+    const left = Math.min(Math.max(position.x + 18, viewport.left + margin), viewport.left + viewport.width - width - margin);
     const top = Math.min(Math.max(position.y - 18, margin), window.innerHeight - 270);
     composer.style.left = `${left}px`;
     composer.style.top = `${Math.max(top, margin)}px`;
@@ -482,6 +528,9 @@
     root.querySelector("#accred-collapse")?.addEventListener("click", () => {
       state.collapsed = !state.collapsed;
       render();
+    });
+    root.querySelector("#accred-container-toggle")?.addEventListener("click", () => {
+      setContainerMode(!state.containerMode);
     });
     root.querySelector("#accred-cancel-pin")?.addEventListener("click", () => {
       state.pinMode = false;
@@ -970,7 +1019,12 @@
     renderPins(false);
     positionComposer();
     const currentMobileSurface = isMobileSurface();
-    if (currentMobileSurface !== lastMobileSurface) render();
+    if (currentMobileSurface !== lastMobileSurface) {
+      syncViewportClass();
+      render();
+      return;
+    }
+    if (containerModeActive()) syncViewportClass();
   });
   window.visualViewport?.addEventListener("resize", () => {
     renderPins(false);
@@ -981,6 +1035,8 @@
     positionComposer();
   });
 
-  render();
-  connect();
+  loadContainerMode().then(() => {
+    render();
+    connect();
+  });
 })();

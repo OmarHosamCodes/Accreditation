@@ -1,7 +1,8 @@
 const DEFAULT_SETTINGS = {
   apiBase: "http://localhost:3000",
   username: "",
-  password: ""
+  password: "",
+  containerMode: false
 };
 
 chrome.runtime.onInstalled.addListener(async () => {
