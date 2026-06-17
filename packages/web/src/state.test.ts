@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { esc, fmtDate } from "./state.ts";
+import { esc, fmtDate } from "./lib/state.ts";
 
 describe("esc", () => {
   test("escapes HTML characters", () => {

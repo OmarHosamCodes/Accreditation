@@ -7,9 +7,11 @@
     "bun": ">=1.3.0"
   },
   "scripts": {
-    "dev": "bun --hot --filter @accreditation/server dev",
+    "dev": "bun --filter @accreditation/web dev & bun --filter @accreditation/server dev",
+    "dev:web": "bun --filter @accreditation/web dev",
+    "dev:server": "bun --filter @accreditation/server dev",
     "start": "bun --filter @accreditation/server start",
-    "build": "bun --filter @accreditation/server build",
+    "build": "bun --filter @accreditation/web build && bun --filter @accreditation/server build",
     "test": "bun test",
     "typecheck": "bun --filter @accreditation/shared typecheck && bun --filter @accreditation/server typecheck && bun --filter @accreditation/web typecheck",
     "check": "bun run typecheck && bun run build"

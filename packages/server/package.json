@@ -6,12 +6,11 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "bun src/index.ts",
-    "build": "rm -rf dist && cp ../web/index.html /tmp/accreditation-web-index.bak && bun build src/index.ts --target=bun --outdir dist --minify && cp /tmp/accreditation-web-index.bak ../web/index.html",
+    "build": "rm -rf dist && bun build src/index.ts --target=bun --outdir dist --minify",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@accreditation/shared": "workspace:*",
-    "@accreditation/web": "workspace:*",
     "postgres": "^3.4.9"
   }
 }

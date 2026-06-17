@@ -1,14 +1,14 @@
 # Accreditation
 
-Bun 1.3.x workspace monorepo for the Accreditation platform: API server, web UI, browser extension, and shared domain logic.
+Bun 1.3.x workspace monorepo for the Accreditation platform: API server, React web UI, browser extension, and shared domain logic.
 
 ## Project layout
 
 ```
 packages/
   shared/     Types, tiers, scoring, seed data
-  server/     Bun.serve API + HTML route
-  web/        Bun fullstack frontend (index.html + TS/CSS modules)
+  server/     Bun.serve API + static SPA hosting
+  web/        Vite + React + shadcn/ui frontend
   extension/  Chrome MV3 audit toolbar
 ```
 
@@ -19,7 +19,19 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000`.
+This starts:
+
+- **Vite** on `http://localhost:5173` (web UI with HMR; proxies `/api` and `/badge-*` to the server)
+- **Bun API** on `http://localhost:3000`
+
+Open `http://localhost:5173` for the app during development.
+
+To run only one side:
+
+```bash
+bun run dev:web     # Vite only
+bun run dev:server  # API only
+```
 
 If `DATABASE_URL` is not set, the server uses in-memory state for local testing. Copy `.env.example` to `.env` and set `DATABASE_URL` for persistent Postgres storage.
 
@@ -27,9 +39,9 @@ If `DATABASE_URL` is not set, the server uses in-memory state for local testing.
 
 | Command | Description |
 |---------|-------------|
-| `bun run dev` | Start server with HMR (`bun --hot`) |
-| `bun run start` | Start server |
-| `bun run build` | Production bundle (server + web assets) |
+| `bun run dev` | Start Vite + API server |
+| `bun run start` | Start production server (serves built web from `packages/web/dist`) |
+| `bun run build` | Build web (`vite build`) then bundle server |
 | `bun run test` | Run tests across packages |
 | `bun run typecheck` | Type-check shared, server, and web modules |
 | `bun run check` | `typecheck` + `build` (CI validation) |
@@ -50,7 +62,7 @@ NODE_ENV=development
 
 The unpacked Chrome/Edge extension lives in `packages/extension/`.
 
-1. Start the API with `bun run dev`.
+1. Start the API with `bun run dev:server` (or `bun run dev`).
 2. Open `chrome://extensions`.
 3. Enable Developer mode.
 4. Choose "Load unpacked" and select the `packages/extension/` folder.

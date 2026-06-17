@@ -1,6 +1,6 @@
-import homepage from "@accreditation/web/index.html";
 import { config } from "./config.ts";
 import { emptyCorsResponse, json } from "./http/responses.ts";
+import { serveStatic } from "./http/static.ts";
 import * as adminRoutes from "./routes/admin.ts";
 import { badgeSvg } from "./routes/badges.ts";
 import * as extensionRoutes from "./routes/extension.ts";
@@ -13,7 +13,6 @@ const server = Bun.serve({
   port: config.port,
   development: !config.isProduction,
   routes: {
-    "/": homepage,
     "/healthz": {
       GET: () => json({ ok: true }),
     },
@@ -67,8 +66,10 @@ const server = Bun.serve({
       GET: (req) => badgeSvg(store, Number(req.params["id.svg"])),
     },
   },
-  fetch(request) {
+  async fetch(request) {
     if (request.method === "OPTIONS") return emptyCorsResponse();
+    const staticResponse = await serveStatic(request);
+    if (staticResponse) return staticResponse;
     return json({ ok: false, errors: ["Not found"] }, { status: 404 });
   },
   error(err) {
