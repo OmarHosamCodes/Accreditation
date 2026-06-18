@@ -1,0 +1,51 @@
+/* Keep in sync with packages/web/src/index.css :root */
+:root {
+  color-scheme: dark;
+  --background: #090a10;
+  --foreground: #f8fafc;
+  --card: #12141f;
+  --card-foreground: #f8fafc;
+  --popover: #12141f;
+  --popover-foreground: #f8fafc;
+  --primary: #8552f2;
+  --primary-foreground: #ffffff;
+  --secondary: #1e2136;
+  --secondary-foreground: #f8fafc;
+  --muted: #1e2136;
+  --muted-foreground: #94a3b8;
+  --accent: #1e2136;
+  --accent-foreground: #f8fafc;
+  --destructive: #f87171;
+  --destructive-foreground: #090a10;
+  --border: #2a2e47;
+  --input: #2a2e47;
+  --ring: #8552f2;
+  --chart-1: #8552f2;
+  --chart-2: #4ade80;
+  --chart-3: #f8fafc;
+  --chart-4: #60a5fa;
+  --chart-5: #475569;
+  --sidebar: #090a10;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #8552f2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e2136;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #2a2e47;
+  --sidebar-ring: #8552f2;
+
+  --font-sans: Montserrat, Inter, system-ui, sans-serif;
+  --font-serif: Lora, serif;
+  --font-mono: JetBrains Mono, monospace;
+
+  --radius: 0.5rem;
+  --tracking-normal: -0.02em;
+
+  --accred-font: var(--font-sans);
+  --accred-shadow: 0 18px 60px color-mix(in srgb, var(--foreground) 14%, transparent);
+  --accred-ring-soft: color-mix(in srgb, var(--ring) 40%, transparent);
+  --accred-primary-soft: color-mix(in srgb, var(--primary) 10%, transparent);
+  --accred-primary-border: color-mix(in srgb, var(--primary) 24%, var(--border));
+  --accred-destructive-soft: color-mix(in srgb, var(--destructive) 12%, transparent);
+  --accred-surface: color-mix(in srgb, var(--card) 97%, transparent);
+}

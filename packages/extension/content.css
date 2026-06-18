@@ -5,7 +5,7 @@
 #accred-evidence-popover *,
 #accred-tooltip {
   box-sizing: border-box;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--accred-font);
 }
 
 #accred-toolbar {
@@ -16,11 +16,11 @@
   width: min(384px, calc(100vw - 24px));
   max-height: calc(100vh - 92px);
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 12px;
-  background: rgba(10, 11, 13, .95);
-  color: #f2f3f5;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .48);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--accred-surface);
+  color: var(--foreground);
+  box-shadow: var(--accred-shadow);
   backdrop-filter: blur(16px);
 }
 
@@ -41,7 +41,7 @@
   align-items: center;
   gap: 10px;
   padding: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  border-bottom: 1px solid var(--border);
 }
 
 .accred-seal {
@@ -49,10 +49,10 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  background: #c6ff3d;
-  color: #0a0b0d;
-  font-weight: 900;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
 }
 
 .accred-title {
@@ -69,7 +69,7 @@
 .accred-title span {
   display: block;
   overflow: hidden;
-  color: #9aa0aa;
+  color: var(--muted-foreground);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -85,10 +85,10 @@
 .accred-icon {
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, .06);
-  color: #f2f3f5;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--secondary);
+  color: var(--foreground);
   cursor: pointer;
   transition: background .16s ease, border-color .16s ease, transform .16s ease;
 }
@@ -100,18 +100,18 @@
   height: 38px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .07);
-  color: #f2f3f5;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--secondary);
+  color: var(--foreground);
   cursor: pointer;
   transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
 
 .accred-icon-btn.active {
-  border-color: rgba(198, 255, 61, .52);
-  background: rgba(198, 255, 61, .12);
-  color: #c6ff3d;
+  border-color: var(--accred-primary-border);
+  background: var(--accred-primary-soft);
+  color: var(--primary);
   transform: translateY(-1px);
 }
 
@@ -138,15 +138,15 @@
 }
 
 .accred-card {
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .045);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--muted);
   padding: 12px;
   min-width: 0;
 }
 
 .accred-card-title {
-  color: #f8f9fb;
+  color: var(--foreground);
   font-size: 13px;
   font-weight: 800;
   line-height: 1.25;
@@ -156,9 +156,9 @@
 .accred-label {
   display: block;
   margin: 12px 0 6px;
-  color: #a4a8b2;
+  color: var(--muted-foreground);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .05em;
   text-transform: uppercase;
 }
@@ -167,22 +167,23 @@
 .accred-select,
 .accred-textarea {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 8px;
-  background: #15171c;
-  color: #f2f3f5;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
   padding: 10px;
   line-height: 1.35;
   outline: none;
+  box-shadow: 0 1px 2px oklch(0.21 0.006 285.885 / 0.04);
   transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 
 .accred-input:focus,
 .accred-select:focus,
 .accred-textarea:focus {
-  border-color: rgba(198, 255, 61, .72);
-  box-shadow: 0 0 0 3px rgba(198, 255, 61, .13);
-  background: #181b20;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--accred-ring-soft);
+  background: var(--background);
 }
 
 .accred-textarea {
@@ -195,11 +196,11 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .08);
-  color: #f2f3f5;
-  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--secondary);
+  color: var(--foreground);
+  font-weight: 600;
   min-height: 38px;
   min-width: 0;
   padding: 9px 12px;
@@ -215,18 +216,18 @@
 
 .accred-btn.primary {
   border-color: transparent;
-  background: #c6ff3d;
-  color: #0a0b0d;
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .accred-btn.danger {
-  border-color: rgba(255, 106, 85, .35);
-  color: #ff8d7d;
+  border-color: color-mix(in oklch, var(--destructive) 35%, var(--border));
+  color: var(--destructive);
 }
 
 .accred-btn.active {
-  border-color: rgba(198, 255, 61, .65);
-  color: #c6ff3d;
+  border-color: var(--accred-primary-border);
+  color: var(--primary);
 }
 
 .accred-btn:disabled {
@@ -244,15 +245,15 @@
 .accred-progress span {
   height: 5px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, .12);
+  background: var(--border);
 }
 
 .accred-progress span.done {
-  background: #c6ff3d;
+  background: var(--primary);
 }
 
 .accred-muted {
-  color: #9aa0aa;
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -268,10 +269,10 @@
   flex: 1;
   min-width: 0;
   height: 38px;
-  border: 1px solid rgba(255, 255, 255, .14);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .07);
-  color: #f2f3f5;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--secondary);
+  color: var(--foreground);
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
@@ -288,14 +289,14 @@
   gap: 10px;
   max-height: 260px;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .045);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--muted);
   padding: 10px;
 }
 
 .accred-metric-group-title {
-  color: #9aa0aa;
+  color: var(--muted-foreground);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .06em;
@@ -312,7 +313,7 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #d7dae1;
+  color: var(--foreground);
   cursor: pointer;
   font-size: 12px;
   padding: 8px;
@@ -328,16 +329,16 @@
 }
 
 .accred-metric-option b {
-  color: #9aa0aa;
+  color: var(--muted-foreground);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .accred-metric-option.active {
-  border-color: rgba(198, 255, 61, .34);
-  background: rgba(198, 255, 61, .1);
-  color: #c6ff3d;
+  border-color: var(--accred-primary-border);
+  background: var(--accred-primary-soft);
+  color: var(--primary);
 }
 
 .accred-stars {
@@ -357,28 +358,28 @@
   place-items: center;
   border: 0;
   background: transparent;
-  color: rgba(255, 255, 255, .2);
+  color: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
   cursor: pointer;
   font-size: 19px;
   line-height: 1;
   padding: 0;
-  text-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+  text-shadow: none;
   transform-origin: center;
   transition: color .13s ease, filter .13s ease, transform .13s ease;
 }
 
 .accred-star.preview,
 .accred-star.on {
-  color: #c6ff3d;
-  filter: drop-shadow(0 0 8px rgba(198, 255, 61, .38));
+  color: var(--primary);
+  filter: none;
 }
 
 .accred-stars output {
   grid-column: 1 / -1;
   min-width: 0;
-  color: #c6ff3d;
+  color: var(--primary);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   text-align: right;
 }
 
@@ -402,11 +403,11 @@
 }
 
 .accred-evidence-item {
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, .14);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
   padding: 9px;
-  color: #d7dae1;
+  color: var(--foreground);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -420,20 +421,20 @@
 }
 
 .accred-evidence-delete {
-  color: #ff8d7d;
+  color: var(--destructive);
 }
 
 @media (hover: hover) {
   .accred-evidence-delete:hover {
-    border-color: rgba(255, 106, 85, .45);
-    background: rgba(255, 106, 85, .12);
-    color: #ff6a55;
+    border-color: color-mix(in oklch, var(--destructive) 45%, var(--border));
+    background: var(--accred-destructive-soft);
+    color: var(--destructive);
   }
 }
 
 .accred-share-card {
-  border-color: rgba(198, 255, 61, .34);
-  background: rgba(198, 255, 61, .08);
+  border-color: var(--accred-primary-border);
+  background: var(--accred-primary-soft);
 }
 
 .accred-mobile-tabs {
@@ -462,57 +463,57 @@
 .accred-select:focus-visible,
 .accred-textarea:focus-visible,
 .accred-mobile-tab:focus-visible {
-  outline: 2px solid rgba(198, 255, 61, .9);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 @media (hover: hover) {
   .accred-icon:hover {
-    background: rgba(255, 255, 255, .1);
-    border-color: rgba(198, 255, 61, .45);
+    background: var(--accent);
+    border-color: var(--accred-primary-border);
   }
 
   .accred-icon-btn:hover {
-    border-color: rgba(198, 255, 61, .52);
-    background: rgba(198, 255, 61, .12);
-    color: #c6ff3d;
+    border-color: var(--accred-primary-border);
+    background: var(--accred-primary-soft);
+    color: var(--primary);
     transform: translateY(-1px);
   }
 
   .accred-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, .12);
+    background: var(--accent);
     transform: translateY(-1px);
   }
 
   .accred-btn.primary:hover:not(:disabled) {
-    background: #d4ff69;
-    box-shadow: 0 8px 24px rgba(198, 255, 61, .2);
+    background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
+    box-shadow: 0 8px 24px oklch(0.21 0.006 285.885 / 0.12);
   }
 
   .accred-metric-current:hover {
-    border-color: rgba(198, 255, 61, .48);
-    background: rgba(198, 255, 61, .1);
-    color: #c6ff3d;
+    border-color: var(--accred-primary-border);
+    background: var(--accred-primary-soft);
+    color: var(--primary);
   }
 
   .accred-metric-option:hover {
-    border-color: rgba(198, 255, 61, .34);
-    background: rgba(198, 255, 61, .1);
-    color: #c6ff3d;
+    border-color: var(--accred-primary-border);
+    background: var(--accred-primary-soft);
+    color: var(--primary);
   }
 
   .accred-star:hover {
-    color: #c6ff3d;
-    filter: drop-shadow(0 0 8px rgba(198, 255, 61, .38));
+    color: var(--primary);
+    filter: none;
     transform: translateY(-1px);
   }
 }
 
 .accred-share-url {
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, .16);
-  color: #d7dae1;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
   font-size: 11px;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -520,16 +521,16 @@
 }
 
 .accred-evidence-compose {
-  border-color: rgba(198, 255, 61, .34);
-  background: linear-gradient(180deg, rgba(198, 255, 61, .09), rgba(255, 255, 255, .045));
+  border-color: var(--accred-primary-border);
+  background: linear-gradient(180deg, var(--accred-primary-soft), var(--muted));
 }
 
 #accred-evidence-popover {
   position: fixed;
   z-index: 2147483647;
   display: none;
-  color: #f2f3f5;
-  filter: drop-shadow(0 18px 46px rgba(0, 0, 0, .46));
+  color: var(--foreground);
+  filter: drop-shadow(0 18px 46px oklch(0.21 0.006 285.885 / 0.18));
 }
 
 #accred-tooltip {
@@ -538,10 +539,10 @@
   display: none;
   max-width: min(220px, calc(100vw - 16px));
   padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 7px;
-  background: rgba(10, 11, 13, .96);
-  color: #f2f3f5;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--card);
+  color: var(--foreground);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.15;
@@ -558,9 +559,9 @@
 }
 
 #accred-evidence-popover .accred-card {
-  background: rgba(10, 11, 13, .96);
-  border-color: rgba(198, 255, 61, .36);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .25);
+  background: var(--accred-surface);
+  border-color: var(--accred-primary-border);
+  box-shadow: 0 0 0 1px oklch(0.21 0.006 285.885 / 0.06);
   backdrop-filter: blur(16px);
 }
 
@@ -570,23 +571,23 @@
   top: 22px;
   width: 12px;
   height: 12px;
-  border-left: 1px solid rgba(198, 255, 61, .36);
-  border-bottom: 1px solid rgba(198, 255, 61, .36);
-  background: rgba(10, 11, 13, .96);
+  border-left: 1px solid var(--accred-primary-border);
+  border-bottom: 1px solid var(--accred-primary-border);
+  background: var(--accred-surface);
   transform: rotate(45deg);
 }
 
 .accred-target {
   display: grid;
   gap: 3px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, .18);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--muted);
   padding: 9px;
 }
 
 .accred-target span {
-  color: #9aa0aa;
+  color: var(--muted-foreground);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .05em;
@@ -596,9 +597,9 @@
 .accred-target strong {
   display: -webkit-box;
   overflow: hidden;
-  color: #f2f3f5;
+  color: var(--foreground);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -611,26 +612,27 @@
   height: 26px;
   display: grid;
   place-items: center;
-  border: 2px solid #0a0b0d;
+  border: 2px solid var(--card);
   border-radius: 999px;
-  background: #c6ff3d;
-  color: #0a0b0d;
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-size: 12px;
-  font-weight: 900;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  font-weight: 700;
+  box-shadow: 0 8px 24px oklch(0.21 0.006 285.885 / 0.2);
   transform: translate(-50%, -50%);
 }
 
 .accred-pin.pending {
-  border-color: #c6ff3d;
-  background: #0a0b0d;
-  color: #c6ff3d;
-  box-shadow: 0 0 0 4px rgba(198, 255, 61, .18), 0 8px 24px rgba(0, 0, 0, .35);
+  border-color: var(--primary);
+  background: var(--card);
+  color: var(--primary);
+  box-shadow: 0 0 0 4px var(--accred-primary-soft), 0 8px 24px oklch(0.21 0.006 285.885 / 0.2);
 }
 
 .accred-pin.detached {
-  border-color: rgba(255, 106, 85, .95);
-  background: #ff6a55;
+  border-color: var(--destructive);
+  background: var(--destructive);
+  color: var(--primary-foreground);
 }
 
 body.accred-pin-mode {
@@ -643,7 +645,7 @@ body.accred-pin-mode * {
 
 html.accred-container-mode {
   --accred-dock-width: min(400px, 36vw);
-  background: #0a0b0d;
+  background: var(--background);
 }
 
 html.accred-container-mode body {
@@ -779,10 +781,10 @@ html.accred-container-mode body {
     gap: 10px;
     min-height: 48px;
     padding: 8px 12px 10px;
-    border-top: 1px solid rgba(255, 255, 255, .1);
-    color: #f2f3f5;
+    border-top: 1px solid var(--border);
+    color: var(--foreground);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
   }
 
   .accred-mobile-pin-hint .accred-btn {
@@ -801,7 +803,7 @@ html.accred-container-mode body {
     z-index: 1;
     margin: 12px -12px -12px;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0));
-    background: rgba(10, 11, 13, .96);
+    background: var(--accred-surface);
   }
 
   .accred-icon,
@@ -847,27 +849,27 @@ html.accred-container-mode body {
   .accred-mobile-tabs {
     display: flex;
     gap: 4px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, .045);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--muted);
     padding: 4px;
   }
 
   .accred-mobile-tab {
     flex: 1;
     border: 0;
-    border-radius: 8px;
+    border-radius: calc(var(--radius) - 4px);
     background: transparent;
-    color: #d7dae1;
+    color: var(--foreground);
     cursor: pointer;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
     padding: 8px;
   }
 
   .accred-mobile-tab.active {
-    background: #c6ff3d;
-    color: #0a0b0d;
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   .accred-mobile-panel {
