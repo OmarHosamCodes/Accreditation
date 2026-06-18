@@ -1,18 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { config } from "../config.ts";
-import { isAuthed } from "./auth.ts";
+import { isAdminEmail } from "./auth.ts";
 
-describe("isAuthed", () => {
-  test("accepts valid basic auth", () => {
-    const token = btoa(`${config.adminUsername}:${config.adminPassword}`);
-    const request = new Request("http://localhost/api/admin/login", {
-      headers: { authorization: `Basic ${token}` },
-    });
-    expect(isAuthed(request)).toBe(true);
+describe("isAdminEmail", () => {
+  test("matches seeded admin email", () => {
+    expect(isAdminEmail("roaster@accreditation.io")).toBe(true);
+    expect(isAdminEmail("Roaster@accreditation.io")).toBe(true);
   });
 
-  test("rejects missing auth", () => {
-    const request = new Request("http://localhost/api/admin/login");
-    expect(isAuthed(request)).toBe(false);
+  test("rejects other emails", () => {
+    expect(isAdminEmail("auditor@accreditation.io")).toBe(false);
+    expect(isAdminEmail(undefined)).toBe(false);
+  });
+});
+
+describe("extensionUserRole", () => {
+  test("assigns admin to seeded email", async () => {
+    const { extensionUserRole } = await import("./auth.ts");
+    expect(extensionUserRole("roaster@accreditation.io")).toBe("admin");
+    expect(extensionUserRole("other@example.com")).toBe("auditor");
   });
 });

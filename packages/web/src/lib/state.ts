@@ -1,17 +1,10 @@
 import type { AppState } from "@accreditation/shared";
 import { activeWeights as sharedActiveWeights, computeOverall as sharedComputeOverall } from "@accreditation/shared";
 
-export type AdminCredentials = { user: string; pass: string } | null;
-
 export let DB: AppState | null = null;
-export let adminCredentials: AdminCredentials = null;
 
 export function setDB(state: AppState | null) {
   DB = state;
-}
-
-export function setAdminCredentials(credentials: AdminCredentials) {
-  adminCredentials = credentials;
 }
 
 export function activeWeights(db: AppState, weightsVersionId: number) {

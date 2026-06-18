@@ -16,14 +16,12 @@
       <span class="hint">Published audit links use this host, e.g. /audit/42</span>
     </label>
     <label>
-      Username
-      <input id="username" autocomplete="username">
+      Website base URL
+      <input id="webBase" placeholder="http://localhost:5173">
+      <span class="hint">Where you sign in to connect the extension</span>
     </label>
-    <label>
-      Password
-      <input id="password" type="password" autocomplete="current-password">
-    </label>
-    <button id="save">Save and test</button>
+    <button id="signIn">Sign in on website</button>
+    <button id="disconnect" type="button">Sign out</button>
     <p id="status"></p>
   </main>
   <script src="gsap.min.js"></script>

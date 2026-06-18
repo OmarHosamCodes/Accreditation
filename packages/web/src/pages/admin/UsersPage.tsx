@@ -1,90 +1,160 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { RoleBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAppData } from "@/contexts/AppDataContext";
-import { saveState } from "@/lib/api";
-import { UserPlus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAdminMutation } from "@/hooks/useAdminMutation";
+import * as adminApi from "@/lib/admin-api";
+import { UserPlus, Users } from "lucide-react";
 
 export function UsersPage() {
-  const { db, updateDB } = useAppData();
+  const { mutate, pending } = useAdminMutation();
+  const [users, setUsers] = useState<adminApi.AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("auditor");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  if (!db) return null;
-
-  if (!db.users) {
-    db.users = [{ name: "Roaster", role: "admin", email: "roaster@accreditation.io" }];
-  }
-
-  const addUser = async () => {
-    if (name.length < 2 || !/.+@.+\..+/.test(email)) {
-      toast.error("Enter a name and valid email");
-      return;
-    }
-    db.users!.push({ name, role: "auditor", email });
+  const loadUsers = async () => {
+    setLoading(true);
     try {
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
-      toast.success(`Invited ${name}`);
-      setName("");
-      setEmail("");
+      const res = await adminApi.listUsers();
+      if (res.users) setUsers(res.users);
     } catch {
-      /* shown */
+      /* toast from api */
+    } finally {
+      setLoading(false);
     }
   };
 
-  const rmUser = async (index: number) => {
-    db.users!.splice(index, 1);
-    try {
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
-    } catch {
-      /* shown */
+  useEffect(() => {
+    void loadUsers();
+  }, []);
+
+  const addUser = async () => {
+    const res = await mutate(
+      () => adminApi.createUser({ name, email, password, role }),
+      { success: `Created account for ${name}` },
+    );
+    if (res) {
+      setName("");
+      setEmail("");
+      setPassword("");
+      setRole("auditor");
+      await loadUsers();
+    }
+  };
+
+  const removeUser = async () => {
+    if (!deleteId) return;
+    const res = await mutate(() => adminApi.deleteUser(deleteId), { success: "User removed" });
+    if (res) {
+      setDeleteId(null);
+      await loadUsers();
     }
   };
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold">Users</h1>
-      <Card className="mb-8">
-        <CardContent className="divide-y px-0 py-0">
-          {db.users.map((u, i) => (
-            <div key={u.email} className="flex items-center justify-between gap-4 p-4">
-              <div>
-                <span className="font-medium">{u.name}</span>{" "}
-                <Badge variant="secondary" className="ml-1 text-[10px] uppercase">{u.role}</Badge>
-                <p className="text-muted-foreground text-sm">{u.email}</p>
-              </div>
-              {u.role !== "admin" ? (
-                <Button size="sm" variant="ghost" onClick={() => void rmUser(i)}>Remove</Button>
-              ) : (
-                <span className="text-muted-foreground text-xs">owner</span>
-              )}
-            </div>
+      <AdminPageHeader
+        title="Users"
+        description="Better Auth accounts synced with auditor roles in app state."
+        meta={`${users.length} user(s)`}
+      />
+
+      {loading ? (
+        <div className="bg-card mb-8 space-y-3 rounded-lg border p-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
-        </CardContent>
-      </Card>
-      <h2 className="text-muted-foreground mb-3 text-sm font-medium tracking-wide uppercase">Invite a co-auditor</h2>
-      <Card className="max-w-md">
-        <CardContent className="space-y-4 pt-6">
-          <div className="space-y-2">
-            <Label htmlFor="us_name">Name</Label>
-            <Input id="us_name" placeholder="Jane Auditor" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="us_email">Email</Label>
-            <Input id="us_email" placeholder="jane@…" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <Button onClick={() => void addUser()}>
-            <UserPlus className="size-4" />
-            Send invite
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      ) : users.length ? (
+        <div className="bg-card mb-8 rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Name</TableHead>
+                <TableHead scope="col">Email</TableHead>
+                <TableHead scope="col">Role</TableHead>
+                <TableHead scope="col" className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u) => (
+                <TableRow key={u.id ?? u.email}>
+                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell>
+                    <RoleBadge role={u.role} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {u.id && (
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(u.id!)}>
+                        Remove
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <AdminEmptyState icon={<Users className="size-9" />} title="No users">
+          Invite a co-auditor below. The seeded admin is created on server startup.
+        </AdminEmptyState>
+      )}
+
+      <AdminPageHeader title="Invite co-auditor" />
+      <div className="bg-card max-w-md space-y-4 rounded-lg border p-4">
+        <div className="space-y-2">
+          <Label htmlFor="us_name">Name</Label>
+          <Input id="us_name" placeholder="Jane Auditor" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="us_email">Email</Label>
+          <Input id="us_email" type="email" placeholder="jane@…" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="us_pass">Temporary password</Label>
+          <Input id="us_pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Role</Label>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auditor">Auditor</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={() => void addUser()} disabled={pending}>
+          <UserPlus className="size-4" />
+          Create account
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        title="Remove user"
+        description="This deletes the Better Auth account and removes them from the app user list."
+        confirmLabel="Remove user"
+        destructive
+        loading={pending}
+        onConfirm={() => void removeUser()}
+      />
     </div>
   );
 }

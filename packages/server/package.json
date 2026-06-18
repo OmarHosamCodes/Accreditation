@@ -4,13 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot src/index.ts",
-    "start": "bun src/index.ts",
+    "dev": "bun --env-file=../../.env --env-file=.env --hot src/index.ts",
+    "start": "bun --env-file=../../.env --env-file=.env src/index.ts",
     "build": "rm -rf dist && bun build src/index.ts --target=bun --outdir dist --minify",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "auth:migrate": "bun --env-file=../../.env --env-file=.env x auth@latest migrate --yes"
   },
   "dependencies": {
     "@accreditation/shared": "workspace:*",
+    "better-auth": "^1.6.19",
+    "pg": "^8.21.0",
     "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
   }
 }

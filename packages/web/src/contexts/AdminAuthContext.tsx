@@ -1,45 +1,36 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
-import { apiJSON, authHeader } from "@/lib/api";
-import { setAdminCredentials, type AdminCredentials } from "@/lib/state";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
+import { authClient } from "@/lib/auth-client";
 
 type AdminAuthContextValue = {
   isAuthed: boolean;
+  isPending: boolean;
   user: string;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
-  const [credentials, setCredentials] = useState<AdminCredentials>(null);
+  const { data: session, isPending } = authClient.useSession();
 
-  const login = useCallback(async (username: string, password: string) => {
-    setAdminCredentials({ user: username, pass: password });
-    try {
-      await apiJSON("/api/admin/login", {
-        method: "POST",
-        headers: authHeader(),
-        body: "{}",
-      });
-      setCredentials({ user: username, pass: password });
-    } catch {
-      setAdminCredentials(null);
-      setCredentials(null);
-      throw new Error("Wrong credentials.");
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await authClient.signIn.email({ email, password });
+    if (result.error) {
+      throw new Error(result.error.message || "Wrong credentials.");
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setAdminCredentials(null);
-    setCredentials(null);
+  const logout = useCallback(async () => {
+    await authClient.signOut();
   }, []);
 
   return (
     <AdminAuthContext.Provider
       value={{
-        isAuthed: credentials !== null,
-        user: credentials?.user ?? "Roaster",
+        isAuthed: Boolean(session?.user),
+        isPending,
+        user: session?.user.name || session?.user.email || "Auditor",
         login,
         logout,
       }}

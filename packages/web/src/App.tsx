@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { ErrorScreen, RequireData } from "@/components/layout/RequireData";
@@ -6,9 +6,17 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AdminEditorProvider } from "@/contexts/AdminEditorContext";
 import { AppDataProvider, useAppData } from "@/contexts/AppDataContext";
+import { AuditDetailPage } from "@/pages/admin/AuditDetailPage";
+import { AuditsPage } from "@/pages/admin/AuditsPage";
+import { BrandDetailPage } from "@/pages/admin/BrandDetailPage";
+import { BrandsPage } from "@/pages/admin/BrandsPage";
+import { ConnectExtensionGate } from "@/pages/admin/ConnectExtensionPage";
+import { DashboardPage } from "@/pages/admin/DashboardPage";
 import { EditorPage } from "@/pages/admin/EditorPage";
+import { EvidencePage } from "@/pages/admin/EvidencePage";
 import { QueuePage } from "@/pages/admin/QueuePage";
 import { RubricPage } from "@/pages/admin/RubricPage";
+import { SettingsPage } from "@/pages/admin/SettingsPage";
 import { UsersPage } from "@/pages/admin/UsersPage";
 import { WeightsPage } from "@/pages/admin/WeightsPage";
 import { ApplyPage } from "@/pages/public/ApplyPage";
@@ -44,13 +52,20 @@ function AppRoutes() {
           <Route path="reaudit/:id" element={<ReauditPage />} />
         </Route>
         <Route path="admin" element={<AdminLayout />}>
+          <Route path="connect-extension" element={<ConnectExtensionGate />} />
           <Route element={<AdminSection />}>
-            <Route index element={<Navigate to="queue" replace />} />
+            <Route index element={<DashboardPage />} />
             <Route path="queue" element={<QueuePage />} />
             <Route path="editor" element={<EditorPage />} />
+            <Route path="brands" element={<BrandsPage />} />
+            <Route path="brands/:id" element={<BrandDetailPage />} />
+            <Route path="audits" element={<AuditsPage />} />
+            <Route path="audits/:id" element={<AuditDetailPage />} />
+            <Route path="evidence" element={<EvidencePage />} />
             <Route path="rubric" element={<RubricPage />} />
             <Route path="weights" element={<WeightsPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>
       </Routes>

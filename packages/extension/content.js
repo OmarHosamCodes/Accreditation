@@ -75,6 +75,33 @@
     });
   }
 
+  function getApiBase() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get({ apiBase: "http://localhost:3000" }, (stored) => {
+        resolve(String(stored.apiBase || "http://localhost:3000").replace(/\/+$/, ""));
+      });
+    });
+  }
+
+  function normalizePublicAuditUrl(rawUrl, auditId, apiBase) {
+    if (rawUrl) {
+      try {
+        const url = new URL(rawUrl);
+        const hashMatch = url.hash.match(/^#audit\/(\d+)$/);
+        if (hashMatch) {
+          return `${url.origin}/audit/${hashMatch[1]}`;
+        }
+        return rawUrl;
+      } catch {
+        /* fall through */
+      }
+    }
+    if (auditId > 0 && apiBase) {
+      return `${apiBase.replace(/\/+$/, "")}/audit/${auditId}`;
+    }
+    return "";
+  }
+
   function isMobileSurface() {
     return window.matchMedia?.(MOBILE_QUERY).matches || window.innerWidth <= 640;
   }
@@ -100,7 +127,7 @@
 
   function loadContainerMode() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get({ containerMode: false }, (stored) => {
+      chrome.storage.local.get({ containerMode: false }, (stored) => {
         state.containerMode = Boolean(stored.containerMode);
         resolve();
       });
@@ -110,7 +137,7 @@
   function setContainerMode(enabled) {
     if (isMobileSurface()) enabled = false;
     state.containerMode = enabled;
-    chrome.storage.sync.set({ containerMode: enabled });
+    chrome.storage.local.set({ containerMode: enabled });
     syncViewportClass();
     positionComposer();
     render();
@@ -357,7 +384,7 @@
   function renderLoginState(page) {
     return `
       <div class="accred-card">
-        <div class="accred-muted">Configure the API URL and auditor credentials from the extension popup, then connect here.</div>
+        <div class="accred-muted">Sign in from the extension popup on the website, then connect here.</div>
         <div class="accred-row" style="margin-top:10px">
           <button class="accred-btn primary" id="accred-connect">Connect</button>
           <a class="accred-btn" href="${esc(page.url)}" target="_blank" rel="noreferrer">Page</a>
@@ -751,8 +778,8 @@
       window.gsap.timeline({ onComplete: resolve })
         .to(button, { scale: .96, duration: .08, ease: "power1.out" })
         .to(button, { scale: 1, duration: .14, ease: "back.out(2)" })
-        .to(card, { boxShadow: "0 0 0 1px rgba(198,255,61,.42)", duration: .12, ease: "power1.out" }, 0)
-        .to(card, { boxShadow: "0 0 0 0 rgba(198,255,61,0)", duration: .18, ease: "power1.out" });
+        .to(card, { boxShadow: "0 0 0 1px rgba(113, 113, 122, 0.45)", duration: .12, ease: "power1.out" }, 0)
+        .to(card, { boxShadow: "0 0 0 0 transparent", duration: .18, ease: "power1.out" });
     });
   }
 
@@ -814,7 +841,8 @@
     try {
       const data = await api("POST", `/api/extension/audits/${state.audit.id}/submit`, { summary });
       state.audit = data.audit || state.audit;
-      state.publishedUrl = data.public_url || "";
+      const apiBase = await getApiBase();
+      state.publishedUrl = normalizePublicAuditUrl(data.public_url || "", state.audit?.id, apiBase);
       state.pinMode = false;
       state.publishOpen = false;
       document.body.classList.remove("accred-pin-mode");

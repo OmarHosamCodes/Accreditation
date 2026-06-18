@@ -1,7 +1,8 @@
 import { tierFor } from "@accreditation/shared";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { Link, useNavigate } from "react-router-dom";
+import { AdminBreadcrumbs } from "@/components/admin/AdminShell";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { TierBadge } from "@/components/shared/TierBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,21 +10,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useAdminEditor } from "@/contexts/AdminEditorContext";
 import { useAppData } from "@/contexts/AppDataContext";
-import { saveState } from "@/lib/api";
+import { useAdminMutation } from "@/hooks/useAdminMutation";
+import * as adminApi from "@/lib/admin-api";
 import { anchorForText, brandById, catBreakdown, computeOverall } from "@/lib/state";
 import { CheckSquare, Rocket, Save } from "lucide-react";
-import { useState } from "react";
 
 export function EditorPage() {
-  const { db, updateDB } = useAppData();
-  const { user } = useAdminAuth();
+  const { db } = useAppData();
+  const { mutate, pending } = useAdminMutation();
   const { editing, scores, startAudit, cancelEdit, setScore, setNote, setSummary, setAuditId } = useAdminEditor();
   const navigate = useNavigate();
-  const [publishing, setPublishing] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   if (!db) return null;
 
@@ -31,31 +29,28 @@ export function EditorPage() {
     const pend = db.applications.filter((a) => a.status === "pending" || a.status === "in_progress");
     return (
       <div>
-        <h1 className="mb-6 text-2xl font-semibold">Audit editor</h1>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="mb-4 font-medium">Pick something from the queue to score:</p>
-            {pend.length ? (
-              <div className="space-y-3">
-                {pend.map((ap) => {
-                  const b = brandById(db, ap.brand_id)!;
-                  return (
-                    <div key={ap.id} className="flex items-center justify-between gap-4">
-                      <div>
-                        <span className="font-medium">{b.name}</span>{" "}
-                        <Badge variant="outline" className="text-[10px] uppercase">{ap.type}</Badge>
-                        <p className="text-muted-foreground text-sm">{b.niche}</p>
-                      </div>
-                      <Button size="sm" onClick={() => startAudit(ap.brand_id, ap.id)}>Score brand</Button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <EmptyState icon={<CheckSquare className="size-9" />}>Nothing waiting. Add one via the public Apply form.</EmptyState>
-            )}
-          </CardContent>
-        </Card>
+        <AdminPageHeader title="Audit editor" description="Pick an application from the queue to score all 16 dimensions." />
+        {pend.length ? (
+          <div className="bg-card space-y-3 rounded-lg border p-4">
+            {pend.map((ap) => {
+              const b = brandById(db, ap.brand_id)!;
+              return (
+                <div key={ap.id} className="flex items-center justify-between gap-4 border-b pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <span className="font-medium">{b.name}</span>{" "}
+                    <Badge variant="outline" className="text-[10px] uppercase">{ap.type}</Badge>
+                    <p className="text-muted-foreground text-sm">{b.niche}</p>
+                  </div>
+                  <Button size="sm" onClick={() => startAudit(ap.brand_id, ap.id)}>Score brand</Button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <AdminEmptyState icon={<CheckSquare className="size-9" />} title="Nothing waiting">
+            Claim an application from the queue or wait for a new submission.
+          </AdminEmptyState>
+        )}
       </div>
     );
   }
@@ -67,95 +62,96 @@ export function EditorPage() {
   const tier = tierFor(overall);
   const bd = catBreakdown(scoreArr.map((x) => ({ dim_id: x.dim_id, score: x.score })), db);
 
-  const buildAudit = (status: "draft" | "published") => {
-    const arr = Object.entries(scores).map(([id, s]) => ({
+  const buildScorePayload = () =>
+    Object.entries(scores).map(([id, s]) => ({
       dim_id: parseInt(id, 10),
       score: s.score,
       note: s.note,
     }));
-    const scoreOnly = arr.map((x) => ({ dim_id: x.dim_id, score: x.score }));
-    const overallScore = computeOverall(scoreOnly, db, editing.rubric, editing.weights);
-    let aud = editing.auditId ? db.audits.find((a) => a.id === editing.auditId) : null;
-    if (!aud) {
-      aud = {
-        id: db.nextId++,
-        brand_id: editing.brandId,
-        auditor: user,
-        rubric_version_id: editing.rubric,
-        weights_version_id: editing.weights,
-        created_at: Date.now(),
-        status: "draft",
-        overall_score: 0,
-        tier: "",
-        summary: "",
-      };
-      db.audits.push(aud);
-      setAuditId(aud.id);
-    }
-    aud.status = status;
-    aud.overall_score = overallScore;
-    aud.tier = tierFor(overallScore).key;
-    aud.summary = editing.summary || "Audited across all 16 dimensions.";
-    if (status === "published") aud.published_at = Date.now();
-    db.audit_scores[aud.id] = arr;
-    if (status === "published" && editing.appId) {
-      const ap = db.applications.find((a) => a.id === editing.appId);
-      if (ap) ap.status = "completed";
-    }
-    return aud;
-  };
 
   const saveDraft = async () => {
-    setSaving(true);
-    try {
-      buildAudit("draft");
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
-      toast.success("Draft saved");
-    } catch {
-      /* shown */
-    } finally {
-      setSaving(false);
-    }
+    const payload = {
+      brand_id: editing.brandId,
+      audit_id: editing.auditId ?? undefined,
+      application_id: editing.appId ?? undefined,
+      summary: editing.summary,
+      scores: buildScorePayload(),
+    };
+    const res = await mutate(() => adminApi.saveAuditDraft(payload), { success: "Draft saved" });
+    if (res?.audit) setAuditId((res.audit as { id: number }).id);
   };
 
   const publishAudit = async () => {
-    setPublishing(true);
-    try {
-      const aud = buildAudit("published");
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
+    let auditId: number | undefined = editing.auditId ?? undefined;
+    if (!auditId) {
+      const draftRes = await mutate(() =>
+        adminApi.saveAuditDraft({
+          brand_id: editing.brandId,
+          application_id: editing.appId ?? undefined,
+          summary: editing.summary,
+          scores: buildScorePayload(),
+        }),
+      );
+      auditId = (draftRes?.audit as { id: number } | undefined)?.id;
+      if (!auditId) return;
+      setAuditId(auditId);
+    } else {
+      const id = auditId;
+      await mutate(() =>
+        adminApi.bulkSaveAuditScores(id, {
+          scores: buildScorePayload(),
+          summary: editing.summary,
+          status: "draft",
+          application_id: editing.appId ?? undefined,
+        }),
+      );
+    }
+
+    const res = await mutate(
+      () => adminApi.publishAudit(auditId, editing.summary || "Audited across all 16 dimensions.", editing.appId ?? undefined),
+      { success: "Published. Public audit is live." },
+    );
+    if (res) {
       cancelEdit();
-      toast.success("Published. Public audit is live.");
       navigate("/admin/queue");
-      setTimeout(() => navigate(`/audit/${aud.id}`), 400);
-    } catch {
-      /* shown */
-    } finally {
-      setPublishing(false);
+      setTimeout(() => navigate(`/audit/${auditId}`), 400);
     }
   };
 
+  const evidenceForDim = (dimId: number) =>
+    db.evidence_pins.filter((p) => p.audit_id === editing.auditId && p.dim_id === dimId).length;
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Scoring: {brand.name}</h1>
-        <Button variant="ghost" size="sm" onClick={() => { cancelEdit(); navigate("/admin/queue"); }}>
-          ← Back to queue
-        </Button>
-      </div>
+      <AdminBreadcrumbs
+        items={[
+          { label: "Queue", to: "/admin/queue" },
+          { label: brand.name },
+        ]}
+      />
+
+      <AdminPageHeader
+        title={`Scoring: ${brand.name}`}
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => { cancelEdit(); navigate("/admin/queue"); }}>
+            ← Back to queue
+          </Button>
+        }
+      />
+
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
         <div className="space-y-6">
           {db.categories.map((c) => {
             const dims = db.dimensions.filter((d) => d.category_key === c.key);
             return (
               <div key={c.key}>
-                <h2 className="text-muted-foreground mb-3 text-sm font-medium tracking-wide uppercase">{c.name}</h2>
+                <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">{c.name}</h2>
                 <div className="space-y-4">
                   {dims.map((d) => {
                     const a = anchors[d.id]!;
                     const sc = scores[d.id]!;
                     const anchor = anchorForText(a, sc.score);
+                    const evCount = editing.auditId ? evidenceForDim(d.id) : 0;
                     return (
                       <Card key={d.id} className="py-4">
                         <CardContent className="space-y-3 px-4">
@@ -179,6 +175,13 @@ export function EditorPage() {
                             onChange={(e) => setNote(d.id, e.target.value)}
                             className="min-h-16"
                           />
+                          {evCount > 0 && editing.auditId && (
+                            <p className="text-muted-foreground text-xs">
+                              <Link to={`/admin/audits/${editing.auditId}`} className="underline">
+                                {evCount} evidence pin(s)
+                              </Link>
+                            </p>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -189,8 +192,9 @@ export function EditorPage() {
           })}
           <Card className="py-4">
             <CardContent className="px-4">
-              <Label>Overall summary</Label>
+              <Label htmlFor="editor_summary">Overall summary</Label>
               <Textarea
+                id="editor_summary"
                 className="mt-2 min-h-20"
                 placeholder="One-paragraph verdict shown at the top of the public audit…"
                 value={editing.summary}
@@ -202,7 +206,7 @@ export function EditorPage() {
         <Card className="sticky top-6 h-fit">
           <CardContent className="space-y-4 pt-6 text-center">
             <p className="text-muted-foreground text-xs tracking-wider uppercase">Live score</p>
-            <div className="text-5xl font-bold" style={{ color: tier.col }}>{overall}</div>
+            <div className="text-5xl font-bold tabular-nums" style={{ color: tier.col }}>{overall}</div>
             <TierBadge tier={tier} className="mx-auto" />
             <div className="space-y-2 text-left text-sm">
               {bd.map((b) => (
@@ -212,13 +216,13 @@ export function EditorPage() {
                 </div>
               ))}
             </div>
-            <Button className="w-full" variant="outline" onClick={() => void saveDraft()} disabled={saving}>
+            <Button className="w-full" variant="outline" onClick={() => void saveDraft()} disabled={pending}>
               <Save className="size-4" />
-              {saving ? "Saving…" : "Save draft"}
+              {pending ? "Saving…" : "Save draft"}
             </Button>
-            <Button className="w-full" onClick={() => void publishAudit()} disabled={publishing}>
+            <Button className="w-full" onClick={() => void publishAudit()} disabled={pending}>
               <Rocket className="size-4" />
-              {publishing ? "Publishing…" : "Publish audit"}
+              {pending ? "Publishing…" : "Publish audit"}
             </Button>
             <p className="text-muted-foreground text-xs">
               Publishing freezes the score + rubric v{editing.rubric} and creates the public page.

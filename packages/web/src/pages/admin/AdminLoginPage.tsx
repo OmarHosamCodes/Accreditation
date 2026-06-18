@@ -9,17 +9,22 @@ import { useAdminAuth } from "@/contexts/AdminAuthContext";
 export function AdminLoginPage() {
   const { login } = useAdminAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!email || !password) {
+      setError("Enter email and password.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      await login(username, password);
-      navigate("/admin/queue");
+      await login(email, password);
+      navigate("/admin");
     } catch {
       setError("Wrong credentials.");
     } finally {
@@ -42,22 +47,36 @@ export function AdminLoginPage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={(e) => void handleLogin(e)}>
           <div className="space-y-2">
-            <Label htmlFor="lg_user">Username</Label>
-            <Input id="lg_user" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <Label htmlFor="lg_email">Email</Label>
+            <Input
+              id="lg_email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="lg_pass">Password</Label>
-            <Input id="lg_pass" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input
+              id="lg_pass"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
-          <Button className="w-full" onClick={() => void handleLogin()} disabled={loading}>
+          <Button className="w-full" type="submit" disabled={loading}>
             {loading ? "Signing in…" : "Sign in"}
           </Button>
           <p className="text-center">
-            <Link to="/" className="text-muted-foreground font-mono text-xs hover:underline">← Back to public site</Link>
+            <Link to="/" className="text-muted-foreground rounded-sm text-xs underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">
+              ← Back to public site
+            </Link>
           </p>
-        </div>
+        </form>
       </div>
     </div>
   );

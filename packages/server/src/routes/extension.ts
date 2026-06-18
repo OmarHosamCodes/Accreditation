@@ -4,11 +4,11 @@ import {
   activeWeights,
   activeWeightsVersion,
   computeOverall,
+  publicAuditUrl,
   tierFor,
 } from "@accreditation/shared";
 import type { AppState, Audit, AuditScore, EvidencePin, Platform } from "@accreditation/shared";
-import { config } from "../config.ts";
-import { authUser, isAuthed } from "../http/auth.ts";
+import { authUser, extensionBearerToken, extensionUserRole, isAuthed, requireSession } from "../http/auth.ts";
 import { json, parseJson } from "../http/responses.ts";
 import type { Store } from "../store/types.ts";
 import { cleanText, normalizeHandle } from "../services/validation.ts";
@@ -27,23 +27,44 @@ function extensionBootstrap(db: AppState) {
   };
 }
 
-export async function extensionLogin(request: Request, store: Store) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
-  const user = authUser(request);
+export async function extensionMintToken(request: Request) {
+  const session = await requireSession(request);
+  if (!session) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
+
+  const token = await extensionBearerToken(request);
+  if (!token) return json({ ok: false, errors: ["Missing session token"] }, request, { status: 401 });
+
   return json({
     ok: true,
-    user: { name: user || "Roaster", role: user === config.adminUsername ? "admin" : "auditor" },
+    token,
+    user: {
+      name: session.user.name,
+      email: session.user.email,
+      role: extensionUserRole(session.user.email),
+    },
+  }, request);
+}
+
+export async function extensionLogin(request: Request, store: Store) {
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
+  const session = await requireSession(request);
+  const db = await store.get();
+  const name = session?.user.name || (await authUser(request)) || "Roaster";
+  const role = extensionUserRole(session?.user.email, db);
+  return json({
+    ok: true,
+    user: { name, role },
     bootstrap: extensionBootstrap(await store.get()),
-  });
+  }, request);
 }
 
 export async function extensionBootstrapRoute(request: Request, store: Store) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
-  return json({ ok: true, bootstrap: extensionBootstrap(await store.get()) });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
+  return json({ ok: true, bootstrap: extensionBootstrap(await store.get()) }, request);
 }
 
 export async function extensionResolveBrand(request: Request, store: Store) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const body = await parseJson(request);
   const platform = cleanText(body?.platform) as Platform;
   const url = cleanText(body?.url);
@@ -54,7 +75,7 @@ export async function extensionResolveBrand(request: Request, store: Store) {
 
   if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
   if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) errors.push("URL must be an Instagram or Facebook page.");
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return json({ ok: false, errors }, request, { status: 400 });
 
   const handle = normalizeHandle(body?.handle, platform, url);
   let brandId = 0;
@@ -82,14 +103,14 @@ export async function extensionResolveBrand(request: Request, store: Store) {
     });
   });
 
-  return json({ ok: true, brand_id: brandId, created, brand: state.brands.find((brand) => brand.id === brandId) });
+  return json({ ok: true, brand_id: brandId, created, brand: state.brands.find((brand) => brand.id === brandId) }, request);
 }
 
 export async function extensionCreateAudit(request: Request, store: Store) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const body = await parseJson(request);
   const brandId = Number(body?.brand_id);
-  const auditor = authUser(request) || "Roaster";
+  const auditor = (await authUser(request)) || "Roaster";
   let auditId = 0;
 
   const state = await store.mutate((db) => {
@@ -119,7 +140,7 @@ export async function extensionCreateAudit(request: Request, store: Store) {
     db.audit_scores[String(auditId)] = [];
   });
 
-  if (!auditId) return json({ ok: false, errors: ["Brand not found"] }, { status: 404 });
+  if (!auditId) return json({ ok: false, errors: ["Brand not found"] }, request, { status: 404 });
   const audit = state.audits.find((item) => item.id === auditId);
   return json({
     ok: true,
@@ -127,14 +148,14 @@ export async function extensionCreateAudit(request: Request, store: Store) {
     scores: state.audit_scores[String(auditId)] || [],
     evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId),
     bootstrap: extensionBootstrap(state),
-  });
+  }, request);
 }
 
 export async function extensionGetAudit(request: Request, store: Store, auditId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const state = await store.get();
   const audit = state.audits.find((item) => item.id === auditId);
-  if (!audit) return json({ ok: false, errors: ["Audit not found"] }, { status: 404 });
+  if (!audit) return json({ ok: false, errors: ["Audit not found"] }, request, { status: 404 });
   return json({
     ok: true,
     audit,
@@ -142,11 +163,11 @@ export async function extensionGetAudit(request: Request, store: Store, auditId:
     scores: state.audit_scores[String(auditId)] || [],
     evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId),
     bootstrap: extensionBootstrap(state),
-  });
+  }, request);
 }
 
 export async function extensionSaveScore(request: Request, store: Store, auditId: number, dimId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const body = await parseJson(request);
   const score = Number(body?.score);
   const note = cleanText(body?.note);
@@ -156,7 +177,7 @@ export async function extensionSaveScore(request: Request, store: Store, auditId
   if (!Number.isInteger(score) || score < 1 || score > 10) errors.push("Score must be an integer from 1 to 10.");
   if (note.length > 1200) errors.push("Note is too long.");
   if (confidence && !["low", "medium", "high"].includes(confidence)) errors.push("Invalid confidence.");
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return json({ ok: false, errors }, request, { status: 400 });
 
   let saved: AuditScore | undefined;
   const state = await store.mutate((db) => {
@@ -183,23 +204,24 @@ export async function extensionSaveScore(request: Request, store: Store, auditId
     audit.tier = tierFor(audit.overall_score).key;
   });
 
-  if (!saved) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, { status: 404 });
-  return json({ ok: true, score: saved, audit: state.audits.find((item) => item.id === auditId) });
+  if (!saved) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, request, { status: 404 });
+  return json({ ok: true, score: saved, audit: state.audits.find((item) => item.id === auditId) }, request);
 }
 
 export async function extensionCreateEvidence(request: Request, store: Store, auditId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const body = await parseJson(request);
   const dimId = Number(body?.dim_id);
   const visibility = cleanText(body?.visibility) as EvidencePin["visibility"];
   const platform = cleanText(body?.platform) as Platform;
+  const author = (await authUser(request)) || "Roaster";
   const errors: string[] = [];
 
   if (!Number.isInteger(dimId)) errors.push("Missing metric dimension.");
   if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
   if (visibility && !["private", "brand-visible", "public"].includes(visibility)) errors.push("Invalid visibility.");
   if (cleanText(body?.note).length < 2) errors.push("Evidence note is required.");
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return json({ ok: false, errors }, request, { status: 400 });
 
   let pin: EvidencePin | undefined;
   const state = await store.mutate((db) => {
@@ -211,7 +233,7 @@ export async function extensionCreateEvidence(request: Request, store: Store, au
       id: db.nextId++,
       audit_id: auditId,
       dim_id: dimId,
-      author: authUser(request) || "Roaster",
+      author: author,
       platform,
       page_url: cleanText(body?.page_url).slice(0, 500),
       selector: cleanText(body?.selector).slice(0, 500),
@@ -235,12 +257,12 @@ export async function extensionCreateEvidence(request: Request, store: Store, au
     if (score) score.evidence_count = db.evidence_pins.filter((item) => item.audit_id === auditId && item.dim_id === dimId).length;
   });
 
-  if (!pin) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, { status: 404 });
-  return json({ ok: true, evidence: pin, audit: state.audits.find((item) => item.id === auditId) });
+  if (!pin) return json({ ok: false, errors: ["Draft audit or dimension not found"] }, request, { status: 404 });
+  return json({ ok: true, evidence: pin, audit: state.audits.find((item) => item.id === auditId) }, request);
 }
 
 export async function extensionDeleteEvidence(request: Request, store: Store, auditId: number, evidenceId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   let deleted: EvidencePin | undefined;
   const state = await store.mutate((db) => {
     const audit = db.audits.find((item) => item.id === auditId && item.status === "draft");
@@ -255,18 +277,18 @@ export async function extensionDeleteEvidence(request: Request, store: Store, au
     }
   });
 
-  if (!deleted) return json({ ok: false, errors: ["Draft audit or evidence not found"] }, { status: 404 });
-  return json({ ok: true, evidence_id: evidenceId, audit: state.audits.find((item) => item.id === auditId) });
+  if (!deleted) return json({ ok: false, errors: ["Draft audit or evidence not found"] }, request, { status: 404 });
+  return json({ ok: true, evidence_id: evidenceId, audit: state.audits.find((item) => item.id === auditId) }, request);
 }
 
 export async function extensionListEvidence(request: Request, store: Store, auditId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const state = await store.get();
-  return json({ ok: true, evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId) });
+  return json({ ok: true, evidence: state.evidence_pins.filter((pin) => pin.audit_id === auditId) }, request);
 }
 
 export async function extensionSubmitAudit(request: Request, store: Store, auditId: number) {
-  if (!isAuthed(request)) return json({ ok: false, errors: ["Unauthorized"] }, { status: 401 });
+  if (!(await isAuthed(request))) return json({ ok: false, errors: ["Unauthorized"] }, request, { status: 401 });
   const body = await parseJson(request);
   const summary = cleanText(body?.summary);
   const errors: string[] = [];
@@ -293,14 +315,14 @@ export async function extensionSubmitAudit(request: Request, store: Store, audit
     publishedAudit = audit;
   });
 
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return json({ ok: false, errors }, request, { status: 400 });
   return json({
     ok: true,
     audit: publishedAudit,
     status: "published",
     overall_score: publishedAudit?.overall_score,
     tier: publishedAudit ? tierFor(publishedAudit.overall_score).name : undefined,
-    public_url: publishedAudit ? `${new URL(request.url).origin}/#audit/${publishedAudit.id}` : undefined,
+    public_url: publishedAudit ? publicAuditUrl(new URL(request.url).origin, publishedAudit.id) : undefined,
     state,
-  });
+  }, request);
 }

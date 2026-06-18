@@ -50,34 +50,47 @@ If `DATABASE_URL` is not set, the server uses in-memory state for local testing.
 
 ```bash
 DATABASE_URL=postgres://...
-ADMIN_USERNAME=roaster
+BETTER_AUTH_SECRET=<32+ char secret>
+BETTER_AUTH_URL=http://localhost:3000
+ADMIN_EMAIL=roaster@accreditation.io
 ADMIN_PASSWORD=change-me
+EXTENSION_ORIGIN=chrome-extension://YOUR_EXTENSION_ID
+VITE_EXTENSION_ID=YOUR_EXTENSION_ID
 PORT=3000
 NODE_ENV=development
 ```
 
-`DATABASE_URL` is supplied by Railway Postgres in production.
+`DATABASE_URL` is supplied by Railway Postgres in production. For local development:
+
+```bash
+bun run dev:db   # starts Postgres via Docker
+bun --filter @accreditation/server auth:migrate
+bun run dev
+```
+
+If your `.env` uses Railway's private `railway.internal` hostname, the server automatically falls back to `postgres://postgres:postgres@localhost:5432/accreditation` in development. Override with `LOCAL_DATABASE_URL` if needed.
 
 ## Browser extension toolbar
 
 The unpacked Chrome/Edge extension lives in `packages/extension/`.
 
-1. Start the API with `bun run dev:server` (or `bun run dev`).
-2. Open `chrome://extensions`.
-3. Enable Developer mode.
-4. Choose "Load unpacked" and select the `packages/extension/` folder.
-5. Open the extension popup, set the API base URL, username, and password.
-6. Visit an Instagram or Facebook brand page and use the injected toolbar to start an audit, score metrics, add evidence pins, and publish to the leaderboard.
+1. Start the app with `bun run dev` (Vite on `:5173` + API on `:3000`).
+2. Open `chrome://extensions`, enable Developer mode, and load unpacked `packages/extension/`.
+3. Copy the extension ID from `chrome://extensions` into `.env` as `EXTENSION_ORIGIN=chrome-extension://…` and `VITE_EXTENSION_ID=…`, then restart the dev servers.
+4. Open the extension popup, confirm API base URL (`http://localhost:3000`) and website base URL (`http://localhost:5173`).
+5. Click **Sign in on website**, sign in with the seeded admin email/password, and wait for “Extension connected”.
+6. Visit an Instagram or Facebook brand page and use the injected toolbar to audit, score metrics, add evidence, and publish.
 
 Default local settings:
 
 ```bash
 API base URL=http://localhost:3000
-Username=roaster
-Password=change-me
+Website base URL=http://localhost:5173
+Admin email=roaster@accreditation.io
+Admin password=change-me
 ```
 
-For production, add the deployed API origin to `packages/extension/manifest.json` under `host_permissions`, then reload the unpacked extension.
+For production, set both base URLs to your deployed origin and add that origin to `packages/extension/manifest.json` under `host_permissions` and `externally_connectable`, then reload the extension.
 
 ## Railway
 
@@ -93,7 +106,7 @@ For production, add the deployed API origin to `packages/extension/manifest.json
 railway login
 railway link
 railway add --database postgres
-railway variables --set ADMIN_USERNAME=roaster ADMIN_PASSWORD=<secure-password>
+railway variables --set BETTER_AUTH_SECRET=<secret> BETTER_AUTH_URL=https://your-service.up.railway.app ADMIN_EMAIL=roaster@accreditation.io ADMIN_PASSWORD=<secure-password> EXTENSION_ORIGIN=chrome-extension://YOUR_EXTENSION_ID
 railway up
 ```
 
@@ -119,25 +132,17 @@ It should return:
 
 ### Use the extension against Railway
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click "Load unpacked".
-4. Select this repo's `packages/extension/` folder.
-5. Open the extension popup.
-6. Set:
+1. Open `chrome://extensions`, enable Developer mode, and load unpacked `packages/extension/`.
+2. Set `EXTENSION_ORIGIN` on the server to your extension ID and rebuild/redeploy if needed.
+3. Open the extension popup and set:
 
 ```bash
 API base URL=https://your-service.up.railway.app
-Username=roaster
-Password=<secure-password>
+Website base URL=https://your-service.up.railway.app
 ```
 
-7. Open an Instagram or Facebook brand page.
-8. Click `Start audit`.
-9. Score any metrics you want.
-10. Use `Pin` to attach evidence to page elements.
-11. Click `Publish`; unfinished audits can publish, and missing metrics score as `0`.
-12. Use the `Copy link` button after publish to share the public audit URL.
+4. Click **Sign in on website**, sign in with your admin email/password, and wait for the connect confirmation.
+5. Open an Instagram or Facebook brand page, click **Start audit**, score metrics, pin evidence, and **Publish**.
 
 The extension manifest already allows Railway domains:
 

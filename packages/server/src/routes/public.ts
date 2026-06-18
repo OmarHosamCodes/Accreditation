@@ -1,11 +1,11 @@
 import type { Platform } from "@accreditation/shared";
 import { rateLimitByEmail } from "../http/auth.ts";
-import { json, parseJson } from "../http/responses.ts";
+import { jsonPublic, parseJson } from "../http/responses.ts";
 import type { Store } from "../store/types.ts";
 import { cleanText, handleFrom } from "../services/validation.ts";
 
 export async function getState(store: Store) {
-  return json(await store.get());
+  return jsonPublic(await store.get());
 }
 
 export async function createApplication(request: Request, store: Store) {
@@ -19,7 +19,7 @@ export async function createApplication(request: Request, store: Store) {
   const honeypot = cleanText(body?.honeypot);
   const errors: string[] = [];
 
-  if (honeypot) return json({ ok: true });
+  if (honeypot) return jsonPublic({ ok: true });
   if (brandName.length < 2 || brandName.length > 80) errors.push("Brand name looks off.");
   if (!["ig", "fb"].includes(platform)) errors.push("Choose Instagram or Facebook.");
   if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) errors.push("Profile URL must be a facebook.com or instagram.com link.");
@@ -32,7 +32,7 @@ export async function createApplication(request: Request, store: Store) {
     errors.push("Slow down - you just applied. Try again shortly.");
   }
 
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return jsonPublic({ ok: false, errors }, { status: 400 });
 
   const state = await store.mutate((db) => {
     const brandId = db.nextId++;
@@ -58,7 +58,7 @@ export async function createApplication(request: Request, store: Store) {
   });
 
   rateLimitByEmail.set(email, Date.now());
-  return json({ ok: true, state });
+  return jsonPublic({ ok: true, state });
 }
 
 export async function createReaudit(request: Request, store: Store) {
@@ -76,7 +76,7 @@ export async function createReaudit(request: Request, store: Store) {
   if (brand && email !== brand.contact_email.toLowerCase()) errors.push("Email must match the one on the original audit.");
   if (changesNote.length < 15) errors.push("Tell us what changed (a real sentence).");
 
-  if (errors.length) return json({ ok: false, errors }, { status: 400 });
+  if (errors.length) return jsonPublic({ ok: false, errors }, { status: 400 });
 
   const state = await store.mutate((db) => {
     db.applications.push({
@@ -90,5 +90,5 @@ export async function createReaudit(request: Request, store: Store) {
     });
   });
 
-  return json({ ok: true, state });
+  return jsonPublic({ ok: true, state });
 }

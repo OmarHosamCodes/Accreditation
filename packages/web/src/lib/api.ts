@@ -1,10 +1,11 @@
 import type { AppState } from "@accreditation/shared";
-import { adminCredentials, setDB } from "./state.ts";
+import { setDB } from "./state.ts";
 
 type ApiError = { ok?: boolean; errors?: string[] };
 
 export async function apiJSON(path: string, opts: RequestInit = {}) {
   const res = await fetch(path, {
+    credentials: "include",
     headers: { "content-type": "application/json", ...(opts.headers || {}) },
     ...opts,
   });
@@ -13,23 +14,15 @@ export async function apiJSON(path: string, opts: RequestInit = {}) {
   return data as Record<string, unknown> & ApiError;
 }
 
-export function authHeader(): Record<string, string> {
-  return adminCredentials
-    ? { authorization: "Basic " + btoa(`${adminCredentials.user}:${adminCredentials.pass}`) }
-    : {};
-}
-
 export async function loadState(): Promise<AppState> {
   return (await apiJSON("/api/state")) as unknown as AppState;
 }
 
 export async function saveState(db: AppState | null, onError: (message: string) => void) {
   if (db) setDB(db);
-  if (!adminCredentials) return;
   try {
     const res = await apiJSON("/api/admin/state", {
       method: "POST",
-      headers: authHeader(),
       body: JSON.stringify({ state: db }),
     });
     if (res.state) setDB(res.state as AppState);
@@ -38,4 +31,8 @@ export async function saveState(db: AppState | null, onError: (message: string) 
     onError((err.errors && err.errors.join(" ")) || "Could not save changes");
     throw e;
   }
+}
+
+export async function mintExtensionToken() {
+  return apiJSON("/api/extension/token", { method: "POST", body: "{}" });
 }

@@ -10,6 +10,7 @@
     "dev": "bun --parallel --filter @accreditation/web --filter @accreditation/server dev",
     "dev:web": "bun --filter @accreditation/web dev",
     "dev:server": "bun --filter @accreditation/server dev",
+    "dev:db": "docker compose up -d",
     "start": "bun --filter @accreditation/server start",
     "build": "bun --filter @accreditation/web build && bun --filter @accreditation/server build",
     "test": "bun test",

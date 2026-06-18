@@ -1,30 +1,60 @@
 import { tierFor } from "@accreditation/shared";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppData } from "@/contexts/AppDataContext";
 import { apiJSON } from "@/lib/api";
 import { brandById } from "@/lib/state";
 import type { AppState } from "@accreditation/shared";
-import { Clock } from "lucide-react";
+import { springSnappy } from "@/components/home/motion-config";
+import { CooldownRing } from "@/components/forms/CooldownRing";
+import {
+  fieldControlClass,
+  FormReadinessMeter,
+  FormSuccessReveal,
+  ValidatedField,
+} from "@/components/forms/FormInstrument";
+import { useValidatedFields } from "@/components/forms/useValidatedFields";
+import { validateChangesNote, validateReauditEmail } from "@/components/forms/validators";
 
 export function ReauditPage() {
   const { id } = useParams();
   const { db, updateDB } = useAppData();
-  const [email, setEmail] = useState("");
-  const [note, setNote] = useState("");
-  const [errors, setErrors] = useState<string[]>([]);
+  const reduceMotion = useReducedMotion();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [serverErrors, setServerErrors] = useState<string[]>([]);
+
+  const auditId = id ? parseInt(id, 10) : NaN;
+  const audit = db?.audits.find((x) => x.id === auditId && x.status === "published");
+  const brand = audit && db ? brandById(db, audit.brand_id) : undefined;
+  const contactEmail = brand?.contact_email ?? "";
+
+  const validators = useMemo(
+    () => ({
+      email: (value: string) => validateReauditEmail(value, contactEmail),
+      note: validateChangesNote,
+    }),
+    [contactEmail],
+  );
+
+  const {
+    values,
+    errors,
+    states,
+    readiness,
+    isValid,
+    setValue,
+    touch,
+    touchAll,
+  } = useValidatedFields({ email: "", note: "" }, validators);
 
   if (!db || !id) return null;
-  const auditId = parseInt(id, 10);
-  const audit = db.audits.find((x) => x.id === auditId && x.status === "published");
-  if (!audit) {
+  if (!audit || !brand) {
     return (
       <section className="py-20 text-center">
         <h1 className="mb-4 text-3xl font-semibold">404</h1>
@@ -34,35 +64,39 @@ export function ReauditPage() {
     );
   }
 
-  const brand = brandById(db, audit.brand_id)!;
-  const days = Math.floor((Date.now() - (audit.published_at ?? 0)) / 86400000);
+  const publishedAt = audit.published_at ?? 0;
+  const days = Math.floor((Date.now() - publishedAt) / 86_400_000);
   const eligible = days >= 30;
 
   const submit = async () => {
-    const errs: string[] = [];
-    if (days < 30) errs.push("Too soon: 30-day cooldown applies.");
-    if (email.trim().toLowerCase() !== brand.contact_email.toLowerCase()) errs.push("Email must match the one on the original audit.");
-    if (note.trim().length < 15) errs.push("Tell us what changed (a real sentence).");
-    if (errs.length) {
-      setErrors(errs);
+    touchAll();
+    setServerErrors([]);
+    if (!eligible) {
+      setServerErrors(["Too soon: 30-day cooldown applies."]);
       return;
     }
-    setErrors([]);
+    if (!isValid) return;
+
     setLoading(true);
     try {
       const res = await apiJSON("/api/reaudits", {
         method: "POST",
-        body: JSON.stringify({ auditId, email, changesNote: note }),
+        body: JSON.stringify({ auditId, email: values.email, changesNote: values.note }),
       });
       if (res.state) updateDB(res.state as AppState);
       setSubmitted(true);
     } catch (e) {
       const err = e as { errors?: string[] };
-      setErrors(err.errors ?? ["Could not request re-audit."]);
+      setServerErrors(err.errors ?? ["Could not request re-audit."]);
     } finally {
       setLoading(false);
     }
   };
+
+  const showError = (key: "email" | "note") =>
+    (states[key] === "invalid" ? errors[key] : null);
+
+  const readyToSubmit = eligible && readiness.ratio === 1 && isValid;
 
   return (
     <section className="py-10">
@@ -74,43 +108,108 @@ export function ReauditPage() {
         <p className="text-muted-foreground mb-6">
           Current: {audit.overall_score}/100 ({tierFor(audit.overall_score).name}), audited {days} day{days === 1 ? "" : "s"} ago.
         </p>
-        {!eligible && (
-          <Alert variant="destructive" className="mb-4">
-            <Clock className="size-4" />
-            <AlertDescription>
-              Re-audits open 30 days after the last publish. You can request again in {30 - days} day{30 - days === 1 ? "" : "s"}.
-            </AlertDescription>
-          </Alert>
-        )}
-        {errors.length > 0 && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>
-              <ul className="list-disc pl-4">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
-            </AlertDescription>
-          </Alert>
-        )}
-        {submitted ? (
-          <Alert>
-            <AlertDescription>
-              Re-audit requested for <strong>{brand.name}</strong>. It is back in the queue.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div className={`space-y-4 ${!eligible ? "pointer-events-none opacity-45" : ""}`}>
-            <div className="space-y-2">
-              <Label htmlFor="ra_email">Contact email (must match the original)</Label>
-              <Input id="ra_email" type="email" placeholder={brand.contact_email} value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ra_note">What did you change?</Label>
-              <Textarea id="ra_note" placeholder="Walk us through what has improved since the last audit…" value={note} onChange={(e) => setNote(e.target.value)} />
-              <p className="text-muted-foreground text-xs">Required. We will not re-score a feed that has not changed.</p>
-            </div>
-            <Button onClick={() => void submit()} disabled={loading || !eligible}>
-              {loading ? "Submitting…" : "Request re-audit"}
-            </Button>
+
+        <CooldownRing publishedAt={publishedAt} brandName={brand.name} className="mb-6" />
+
+        {serverErrors.length > 0 && (
+          <div
+            role="alert"
+            className="bg-destructive/10 text-destructive border-destructive/30 mb-4 rounded-lg border px-4 py-3 text-sm"
+          >
+            <ul className="list-disc pl-4">
+              {serverErrors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
           </div>
         )}
+
+        <LayoutGroup id="reaudit-form">
+          <AnimatePresence mode="wait">
+            {submitted ? (
+              <FormSuccessReveal key="success" layoutId="reaudit-surface">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="text-chart-2 mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                  <div className="space-y-2">
+                    <p className="font-medium">Re-audit requested</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      <strong className="text-foreground">{brand.name}</strong> is back in the queue.
+                    </p>
+                  </div>
+                </div>
+              </FormSuccessReveal>
+            ) : (
+              <motion.div
+                key="form"
+                layoutId="reaudit-surface"
+                className={`bg-card border-border rounded-lg border p-5 ${!eligible ? "pointer-events-none opacity-45" : ""}`}
+                transition={reduceMotion ? { duration: 0 } : springSnappy}
+              >
+                <FormReadinessMeter
+                  met={readiness.met}
+                  total={readiness.total}
+                  ratio={readiness.ratio}
+                  label="fields complete"
+                />
+
+                <div className="space-y-4">
+                  <ValidatedField
+                    id="ra_email"
+                    label="Contact email (must match the original)"
+                    state={states.email}
+                    error={showError("email")}
+                  >
+                    <Input
+                      id="ra_email"
+                      type="email"
+                      placeholder={brand.contact_email}
+                      value={values.email}
+                      onChange={(e) => setValue("email", e.target.value)}
+                      onBlur={() => touch("email")}
+                      className={fieldControlClass(states.email)}
+                      aria-invalid={states.email === "invalid"}
+                      aria-describedby={showError("email") ? "ra_email-error" : undefined}
+                      disabled={!eligible}
+                    />
+                  </ValidatedField>
+
+                  <ValidatedField
+                    id="ra_note"
+                    label="What did you change?"
+                    hint="Required. We will not re-score a feed that has not changed."
+                    state={states.note}
+                    error={showError("note")}
+                  >
+                    <Textarea
+                      id="ra_note"
+                      placeholder="Walk us through what has improved since the last audit…"
+                      value={values.note}
+                      onChange={(e) => setValue("note", e.target.value)}
+                      onBlur={() => touch("note")}
+                      className={fieldControlClass(states.note)}
+                      aria-invalid={states.note === "invalid"}
+                      aria-describedby={showError("note") ? "ra_note-error" : undefined}
+                      disabled={!eligible}
+                    />
+                  </ValidatedField>
+
+                  <motion.div
+                    animate={readyToSubmit && !loading && !reduceMotion ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Button
+                      onClick={() => void submit()}
+                      disabled={loading || !eligible}
+                      className="w-full sm:w-auto"
+                    >
+                      {loading ? "Submitting…" : "Request re-audit"}
+                    </Button>
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </LayoutGroup>
       </div>
     </section>
   );

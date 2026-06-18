@@ -1,145 +1,176 @@
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { PlatformBadge } from "@/components/shared/TierBadge";
-import { Badge } from "@/components/ui/badge";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminFormDrawer } from "@/components/admin/AdminFormDrawer";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminTable, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/admin/AdminTable";
+import { ApplicationStatusBadge, PlatformBadge } from "@/components/admin/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminEditor } from "@/contexts/AdminEditorContext";
 import { useAppData } from "@/contexts/AppDataContext";
-import { saveState } from "@/lib/api";
-import { brandById, fmtDate } from "@/lib/state";
-import { Inbox, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { useAdminMutation } from "@/hooks/useAdminMutation";
+import * as adminApi from "@/lib/admin-api";
+import { fmtDate } from "@/lib/state";
+import { ClipboardList, Settings2 } from "lucide-react";
 
-const statuses = ["pending", "in_progress", "completed", "rejected"] as const;
+type StatusFilter = "all" | "pending" | "in_progress" | "completed" | "rejected";
 
 export function QueuePage() {
-  const { db, updateDB } = useAppData();
-  const { user } = useAdminAuth();
+  const { db } = useAppData();
+  const { mutate, pending } = useAdminMutation();
   const { startAudit } = useAdminEditor();
   const navigate = useNavigate();
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
+  const applications = useMemo(() => {
+    if (!db) return [];
+    let list = [...db.applications].sort((a, b) => b.created_at - a.created_at);
+    if (status !== "all") list = list.filter((a) => a.status === status);
+    const q = search.toLowerCase();
+    if (q) {
+      list = list.filter((ap) => {
+        const brand = db.brands.find((b) => b.id === ap.brand_id);
+        return brand?.name.toLowerCase().includes(q) || brand?.handle.toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [db, status, search]);
+
   if (!db) return null;
 
-  const apps = [...db.applications].sort((a, b) => b.created_at - a.created_at);
-  const pending = apps.filter((a) => a.status === "pending" || a.status === "in_progress");
+  const pendingCount = db.applications.filter((a) => a.status === "pending" || a.status === "in_progress").length;
 
   const claimAndScore = async (appId: number) => {
     const ap = db.applications.find((a) => a.id === appId);
     if (!ap) return;
-    ap.status = "in_progress";
-    ap.claimed_by = user;
-    try {
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
+    const res = await mutate(() => adminApi.claimApplication(appId));
+    if (res) {
       startAudit(ap.brand_id, appId);
       navigate("/admin/editor");
-    } catch {
-      /* toast shown */
     }
   };
 
   const rejectApp = async () => {
     if (rejectId === null) return;
-    const ap = db.applications.find((a) => a.id === rejectId);
-    if (!ap) return;
-    ap.status = "rejected";
-    ap.reject_reason = rejectReason;
-    try {
-      await saveState(db, (m) => toast.error(m));
-      updateDB({ ...db });
-      toast.success("Application rejected");
-    } catch {
-      /* toast shown */
+    const res = await mutate(
+      () => adminApi.rejectApplication(rejectId, rejectReason),
+      { success: "Application rejected" },
+    );
+    if (res) {
+      setRejectId(null);
+      setRejectReason("");
     }
-    setRejectId(null);
-    setRejectReason("");
   };
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Queue</h1>
-        <span className="text-muted-foreground text-sm">{pending.length} awaiting action · {apps.length} total</span>
+      <AdminPageHeader
+        title="Queue"
+        description="Review and action incoming audit applications."
+        meta={`${pendingCount} awaiting action · ${db.applications.length} total`}
+      />
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs>
+          <TabsList className="flex-wrap">
+            {(["all", "pending", "in_progress", "completed", "rejected"] as const).map((s) => (
+              <TabsTrigger key={s} active={status === s} onClick={() => setStatus(s)} className="capitalize">
+                {s === "all" ? "All" : s.replace("_", " ")}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent />
+        </Tabs>
+        <Input
+          className="max-w-xs"
+          placeholder="Search by brand…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
-      {statuses.map((st) => {
-        const list = apps.filter((a) => a.status === st);
-        if (!list.length) return null;
-        return (
-          <div key={st} className="mb-8">
-            <h2 className="text-muted-foreground mb-3 text-sm font-medium tracking-wide uppercase">{st.replace("_", " ")} ({list.length})</h2>
-            <Card>
-              <CardContent className="divide-y px-0 py-0">
-                {list.map((ap) => {
-                  const b = brandById(db, ap.brand_id)!;
-                  return (
-                    <div key={ap.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="font-medium">
-                          {b.name}{" "}
-                          <Badge variant="outline" className="ml-1 text-[10px] uppercase">{ap.type}</Badge>
-                        </div>
-                        <div className="text-muted-foreground text-sm">
-                          {b.niche} · <PlatformBadge platform={b.platform} /> · {b.handle} · {fmtDate(ap.created_at)}
-                        </div>
-                        {ap.why && <p className="text-muted-foreground mt-1 text-sm italic">&ldquo;{ap.why}&rdquo;</p>}
-                        {ap.changes_note && <p className="text-muted-foreground mt-1 text-sm italic">Changes: &ldquo;{ap.changes_note}&rdquo;</p>}
+
+      {applications.length ? (
+        <AdminTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Brand</TableHead>
+                <TableHead scope="col">Type</TableHead>
+                <TableHead scope="col">Status</TableHead>
+                <TableHead scope="col">Submitted</TableHead>
+                <TableHead scope="col" className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {applications.map((ap) => {
+                const brand = db.brands.find((b) => b.id === ap.brand_id)!;
+                return (
+                  <TableRow key={ap.id}>
+                    <TableCell>
+                      <Link to={`/admin/brands/${brand.id}`} className="font-medium hover:underline">
+                        {brand.name}
+                      </Link>
+                      <div className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
+                        {brand.niche} · <PlatformBadge platform={brand.platform} /> · {brand.handle}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">{ap.status.replace("_", " ")}</Badge>
-                        {ap.status !== "completed" && ap.status !== "rejected" && (
-                          <>
-                            <Button size="sm" onClick={() => void claimAndScore(ap.id)}>
-                              <Settings2 className="size-4" />
-                              Audit now
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setRejectId(ap.id)}>
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })}
-      {!apps.length && (
-        <EmptyState icon={<Inbox className="size-9" />}>Queue empty. Applications appear here after someone submits the public form.</EmptyState>
+                      {ap.why && <p className="text-muted-foreground mt-1 max-w-md text-xs italic">&ldquo;{ap.why}&rdquo;</p>}
+                    </TableCell>
+                    <TableCell className="capitalize">{ap.type}</TableCell>
+                    <TableCell>
+                      <ApplicationStatusBadge status={ap.status} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{fmtDate(ap.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      {ap.status !== "completed" && ap.status !== "rejected" && (
+                        <>
+                            <Button size="sm" className="min-h-10" onClick={() => void claimAndScore(ap.id)} disabled={pending}>
+                            <Settings2 className="size-4" />
+                            Audit now
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setRejectId(ap.id)}>
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </AdminTable>
+      ) : (
+        <AdminEmptyState icon={<ClipboardList className="size-9" />} title="Queue empty">
+          Applications appear here after someone submits the public form.
+        </AdminEmptyState>
       )}
-      <Dialog open={rejectId !== null} onOpenChange={(o) => !o && setRejectId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject application</DialogTitle>
-            <DialogDescription>Provide a reason for rejection.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="reject_reason">Reason</Label>
-            <Input id="reject_reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+
+      <AdminFormDrawer
+        open={rejectId !== null}
+        onOpenChange={(o) => !o && setRejectId(null)}
+        title="Reject application"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setRejectId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={() => void rejectApp()} disabled={pending}>
+              Reject
+            </Button>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => void rejectApp()}>Reject</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        }
+      >
+        <div className="space-y-2">
+          <Label htmlFor="reject_reason">Reason</Label>
+          <Input id="reject_reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+        </div>
+      </AdminFormDrawer>
     </div>
   );
 }

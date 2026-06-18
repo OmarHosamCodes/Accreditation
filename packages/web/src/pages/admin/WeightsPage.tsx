@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { AdminPageHeader, AdminSection } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAppData } from "@/contexts/AppDataContext";
 import { saveState } from "@/lib/api";
@@ -19,9 +19,10 @@ export function WeightsPage() {
   const [weights, setWeights] = useState<Record<string, number>>({ ...current });
 
   const total = db.categories.reduce((s, c) => s + (weights[c.key] ?? 0), 0);
+  const valid = total === 100;
 
   const saveWeights = async () => {
-    if (total !== 100) {
+    if (!valid) {
       toast.error("Weights must total 100");
       return;
     }
@@ -44,12 +45,28 @@ export function WeightsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Weights</h1>
-        <span className="text-muted-foreground text-sm">Affects new audits only</span>
+      <AdminPageHeader
+        title="Weights"
+        description="Category weights for scoring. Affects new audits only."
+        meta={`Current: v${latestId}`}
+      />
+
+      <div className="bg-card mb-6 max-w-md rounded-lg border p-4">
+        <div className="mb-2 flex justify-between text-sm">
+          <span className="text-muted-foreground">Total</span>
+          <span className={valid ? "text-chart-2 font-medium" : "text-destructive font-medium"}>{total}%</span>
+        </div>
+        <div className="bg-muted h-2 overflow-hidden rounded-full">
+          <div
+            className={`h-full motion-safe:transition-all ${valid ? "bg-primary" : "bg-destructive"}`}
+            style={{ width: `${Math.min(total, 100)}%` }}
+          />
+        </div>
+        {!valid && <p className="text-destructive mt-2 text-xs">Weights must total exactly 100%.</p>}
       </div>
-      <Card className="max-w-md">
-        <CardContent className="space-y-4 pt-6">
+
+      <div className="bg-card mb-8 max-w-md rounded-lg border p-4">
+        <div className="space-y-4">
           {db.categories.map((c) => (
             <div key={c.key} className="flex items-center justify-between gap-4">
               <span className="text-sm font-medium">{c.name}</span>
@@ -63,15 +80,22 @@ export function WeightsPage() {
               />
             </div>
           ))}
-          <p className={`text-sm font-medium ${total === 100 ? "text-green-600" : "text-destructive"}`}>
-            Total: {total}%{total !== 100 ? " (should be 100)" : ""}
-          </p>
-          <Button onClick={() => void saveWeights()} disabled={saving}>
+          <Button onClick={() => void saveWeights()} disabled={saving || !valid}>
             <Save className="size-4" />
             {saving ? "Saving…" : "Save weights"}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      <AdminSection title="Version history">
+        <ul className="text-muted-foreground space-y-1 text-sm">
+          {[...db.weights_versions].reverse().map((v) => (
+            <li key={v.id}>
+              v{v.id}: {Object.entries(v.weights).map(([k, w]) => `${k} ${w}%`).join(", ")}
+            </li>
+          ))}
+        </ul>
+      </AdminSection>
     </div>
   );
 }
