@@ -1,4 +1,4 @@
-import type { Platform } from "@accreditation/shared";
+import { isSocialPageUrl, type Platform } from "@accreditation/shared";
 import { rateLimitByEmail } from "../http/auth.ts";
 import { jsonPublic, parseJson } from "../http/responses.ts";
 import type { Store } from "../store/types.ts";
@@ -22,7 +22,7 @@ export async function createApplication(request: Request, store: Store) {
   if (honeypot) return jsonPublic({ ok: true });
   if (brandName.length < 2 || brandName.length > 80) errors.push("Brand name looks off.");
   if (!["ig", "fb"].includes(platform)) errors.push("Choose Instagram or Facebook.");
-  if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) errors.push("Profile URL must be a facebook.com or instagram.com link.");
+  if (!isSocialPageUrl(url)) errors.push("Profile URL must be a facebook.com or instagram.com link.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.push("Enter a valid email.");
   if (niche.length < 2) errors.push("Tell us your niche.");
   if (why.length < 10) errors.push("Give us a sentence on why you want it.");

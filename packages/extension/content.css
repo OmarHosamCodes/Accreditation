@@ -637,6 +637,7 @@
 
 body.accred-pin-mode {
   cursor: crosshair !important;
+  touch-action: manipulation;
 }
 
 body.accred-pin-mode * {

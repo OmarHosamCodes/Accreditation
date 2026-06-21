@@ -22,6 +22,15 @@
     </label>
     <button id="signIn">Sign in on website</button>
     <button id="disconnect" type="button">Sign out</button>
+    <details class="manual-token">
+      <summary>Paste token manually</summary>
+      <label>
+        Extension token
+        <input id="manualToken" type="password" autocomplete="off" placeholder="Paste token from the connect page">
+        <span class="hint">Use this on Android if automatic sign-in does not connect.</span>
+      </label>
+      <button id="saveManualToken" type="button">Save token</button>
+    </details>
     <p id="status"></p>
   </main>
   <script src="gsap.min.js"></script>

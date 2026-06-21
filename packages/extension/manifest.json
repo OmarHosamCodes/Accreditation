@@ -30,8 +30,10 @@
       "matches": [
         "https://www.instagram.com/*",
         "https://instagram.com/*",
+        "https://m.instagram.com/*",
         "https://www.facebook.com/*",
-        "https://facebook.com/*"
+        "https://facebook.com/*",
+        "https://m.facebook.com/*"
       ],
       "js": ["gsap.min.js", "text-direction.js", "content.js"],
       "css": ["theme.css", "content.css"],

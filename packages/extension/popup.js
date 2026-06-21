@@ -11,6 +11,8 @@ const els = {
   webBase: document.getElementById("webBase"),
   signIn: document.getElementById("signIn"),
   disconnect: document.getElementById("disconnect"),
+  manualToken: document.getElementById("manualToken"),
+  saveManualToken: document.getElementById("saveManualToken"),
   status: document.getElementById("status")
 };
 
@@ -66,7 +68,19 @@ async function signIn() {
 
 async function disconnect() {
   await storageSet({ bearerToken: "", userName: "" });
+  if (els.manualToken) els.manualToken.value = "";
   els.status.textContent = "Signed out.";
+}
+
+async function saveManualToken() {
+  const token = els.manualToken?.value.trim() || "";
+  if (!token) {
+    els.status.textContent = "Paste a token first.";
+    return;
+  }
+  els.status.textContent = "Saving token…";
+  await storageSet({ bearerToken: token });
+  await testConnection();
 }
 
 async function testConnection() {
@@ -90,6 +104,9 @@ els.signIn.addEventListener("click", () => {
 });
 els.disconnect.addEventListener("click", () => {
   void disconnect();
+});
+els.saveManualToken?.addEventListener("click", () => {
+  void saveManualToken();
 });
 els.apiBase.addEventListener("change", () => {
   void saveSettings();

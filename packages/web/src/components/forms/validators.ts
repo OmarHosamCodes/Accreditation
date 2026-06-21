@@ -1,3 +1,5 @@
+import { isSocialPageUrl } from "@accreditation/shared";
+
 export type FieldState = "idle" | "valid" | "invalid";
 
 export function fieldState(value: string, touched: boolean, error: string | null): FieldState {
@@ -12,7 +14,7 @@ export function validateBrandName(name: string): string | null {
 }
 
 export function validateProfileUrl(url: string): string | null {
-  if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) {
+  if (!isSocialPageUrl(url)) {
     return "Profile URL must be a facebook.com or instagram.com link.";
   }
   return null;

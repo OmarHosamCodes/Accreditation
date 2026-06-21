@@ -970,40 +970,64 @@
     return { x: Number(pin.x) || 0, y: Number(pin.y) || 0, tied: false };
   }
 
-  async function addEvidence(event) {
-    if (!state.pinMode || !state.audit || !state.selectedDimId) return;
-    if (root.contains(event.target) || composer.contains(event.target)) return;
-    event.preventDefault();
-    event.stopPropagation();
+  let lastPinTimestamp = 0;
+  const PIN_DEBOUNCE_MS = 400;
+
+  function isToolbarTarget(node) {
+    return node instanceof Node && (root.contains(node) || composer.contains(node));
+  }
+
+  function pinFromPointer({ clientX, clientY, target }) {
+    if (!state.pinMode || !state.audit || !state.selectedDimId) return false;
+    const element = target instanceof Element ? target : target?.parentElement;
+    if (!element || isToolbarTarget(element)) return false;
+
+    const now = Date.now();
+    if (now - lastPinTimestamp < PIN_DEBOUNCE_MS) return false;
+    lastPinTimestamp = now;
 
     const page = detectPage();
-    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
-    const offsetXRatio = rect.width ? (event.clientX - rect.left) / rect.width : .5;
-    const offsetYRatio = rect.height ? (event.clientY - rect.top) / rect.height : .5;
+    const rect = element.getBoundingClientRect();
+    const offsetXRatio = rect.width ? (clientX - rect.left) / rect.width : .5;
+    const offsetYRatio = rect.height ? (clientY - rect.top) / rect.height : .5;
     state.error = "";
     state.pinMode = false;
     document.body.classList.remove("accred-pin-mode");
-    state.pendingElement = target;
+    state.pendingElement = element;
     state.mobileSection = "evidence";
     state.pendingEvidence = {
       dim_id: Number(state.selectedDimId),
       platform: page.platform,
       page_url: page.url,
-      selector: cssSelector(target),
-      dom_path: domPath(target),
-      x: event.clientX,
-      y: event.clientY,
+      selector: cssSelector(element),
+      dom_path: domPath(element),
+      x: clientX,
+      y: clientY,
       offset_x_ratio: Math.min(Math.max(offsetXRatio, 0), 1),
       offset_y_ratio: Math.min(Math.max(offsetYRatio, 0), 1),
       viewport_width: window.innerWidth,
       viewport_height: window.innerHeight,
-      element_text: String(target.innerText || target.textContent || "").trim().slice(0, 500),
+      element_text: String(element.innerText || element.textContent || "").trim().slice(0, 500),
       note: "",
       visibility: "brand-visible"
     };
     render();
+    return true;
+  }
+
+  function handlePinEvent(event) {
+    if (!state.pinMode || !state.audit || !state.selectedDimId) return;
+    if (isToolbarTarget(event.target)) return;
+    if (event.type === "pointerup" && event.pointerType === "touch" && event.isPrimary === false) return;
+
+    if (pinFromPointer({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      target: event.target
+    })) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
   }
 
   function renderPins(animate = true) {
@@ -1034,7 +1058,8 @@
     }
   }
 
-  document.addEventListener("click", addEvidence, true);
+  document.addEventListener("click", handlePinEvent, true);
+  document.addEventListener("pointerup", handlePinEvent, true);
   for (const eventName of ["click", "dblclick", "mousedown", "mouseup", "pointerdown", "pointerup", "keydown", "keyup", "input", "change"]) {
     root.addEventListener(eventName, (event) => event.stopPropagation());
     composer.addEventListener(eventName, (event) => event.stopPropagation());

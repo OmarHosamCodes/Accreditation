@@ -4,6 +4,7 @@ import {
   activeWeights,
   activeWeightsVersion,
   computeOverall,
+  isSocialPageUrl,
   publicAuditUrl,
   tierFor,
 } from "@accreditation/shared";
@@ -74,7 +75,7 @@ export async function extensionResolveBrand(request: Request, store: Store) {
   const errors: string[] = [];
 
   if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
-  if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) errors.push("URL must be an Instagram or Facebook page.");
+  if (!isSocialPageUrl(url)) errors.push("URL must be an Instagram or Facebook page.");
   if (errors.length) return json({ ok: false, errors }, request, { status: 400 });
 
   const handle = normalizeHandle(body?.handle, platform, url);

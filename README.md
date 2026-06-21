@@ -92,6 +92,18 @@ Admin password=change-me
 
 For production, set both base URLs to your deployed origin and add that origin to `packages/extension/manifest.json` under `host_permissions` and `externally_connectable`, then reload the extension.
 
+### Android (Edge Canary)
+
+Chrome for Android does not load extensions. Use **Microsoft Edge Canary** and sideload the same MV3 package. See [docs/android-extension-setup.md](docs/android-extension-setup.md) for install, auth, and mobile URL notes.
+
+Pack a zip for transfer:
+
+```bash
+bun --filter @accreditation/extension pack
+```
+
+The Android extension ID may differ from desktop. Set `EXTENSION_ORIGIN` and `VITE_EXTENSION_ID` to the ID shown in Edge Canary after sideloading.
+
 ## Railway
 
 `railway.json` runs:

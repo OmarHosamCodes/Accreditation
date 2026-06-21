@@ -48,4 +48,39 @@
   --accred-primary-border: color-mix(in srgb, var(--primary) 24%, var(--border));
   --accred-destructive-soft: color-mix(in srgb, var(--destructive) 12%, transparent);
   --accred-surface: color-mix(in srgb, var(--card) 97%, transparent);
+
+  --scrollbar-track: var(--background);
+  --scrollbar-thumb: color-mix(in srgb, var(--primary) 45%, var(--border));
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 70%, var(--border));
+}
+
+#accred-toolbar,
+#accred-evidence-popover,
+#accred-toolbar *,
+#accred-evidence-popover * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+#accred-toolbar ::-webkit-scrollbar,
+#accred-evidence-popover ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#accred-toolbar ::-webkit-scrollbar-track,
+#accred-evidence-popover ::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+#accred-toolbar ::-webkit-scrollbar-thumb,
+#accred-evidence-popover ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+#accred-toolbar ::-webkit-scrollbar-thumb:hover,
+#accred-evidence-popover ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }

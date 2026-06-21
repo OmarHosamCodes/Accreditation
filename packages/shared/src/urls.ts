@@ -1,3 +1,10 @@
+export const SOCIAL_PAGE_URL_RE =
+  /^https?:\/\/(www\.|m\.)?(facebook|instagram)\.com\//i;
+
+export function isSocialPageUrl(url: string): boolean {
+  return SOCIAL_PAGE_URL_RE.test(url);
+}
+
 export function publicAuditUrl(origin: string, auditId: number): string {
   const base = origin.replace(/\/+$/, "");
   return `${base}/audit/${auditId}`;

@@ -26,7 +26,7 @@ const extensionId = import.meta.env.VITE_EXTENSION_ID as string | undefined;
 
 function sendTokenToExtension(token: string, user: { name: string; email?: string; role?: string }) {
   if (!extensionId || !window.chrome?.runtime?.sendMessage) {
-    return Promise.reject(new Error("Extension messaging is unavailable. Set VITE_EXTENSION_ID and reload this page from a browser with the extension installed."));
+    return Promise.reject(new Error("Extension messaging is unavailable."));
   }
 
   return new Promise<void>((resolve, reject) => {
@@ -49,6 +49,8 @@ export function ConnectExtensionPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [manualToken, setManualToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!isAuthed || isPending) return;
@@ -56,6 +58,8 @@ export function ConnectExtensionPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setManualToken(null);
+    setCopied(false);
     setStatus("Connecting extension…");
 
     mintExtensionToken()
@@ -64,13 +68,20 @@ export function ConnectExtensionPage() {
         const token = String(data.token || "");
         const user = data.user as { name: string; email?: string; role?: string } | undefined;
         if (!token) throw new Error("Server did not return an extension token.");
-        await sendTokenToExtension(token, {
-          name: user?.name || "Auditor",
-          email: user?.email,
-          role: user?.role,
-        });
-        if (cancelled) return;
-        setStatus("Extension connected — you can close this tab and return to Instagram or Facebook.");
+
+        try {
+          await sendTokenToExtension(token, {
+            name: user?.name || "Auditor",
+            email: user?.email,
+            role: user?.role,
+          });
+          if (cancelled) return;
+          setStatus("Extension connected — you can close this tab and return to Instagram or Facebook.");
+        } catch {
+          if (cancelled) return;
+          setManualToken(token);
+          setStatus(null);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -143,10 +154,35 @@ export function ConnectExtensionPage() {
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+      ) : manualToken ? (
+        <div className="space-y-4 text-left">
+          <p className="text-muted-foreground text-sm">
+            Automatic connection did not work. Copy this token, open the extension menu, expand
+            {" "}
+            <strong className="text-foreground font-medium">Paste token manually</strong>
+            , paste it, and tap Save token.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="manual_extension_token">Extension token</Label>
+            <Input id="manual_extension_token" readOnly value={manualToken} className="font-mono text-xs" />
+          </div>
+          <Button
+            className="w-full"
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(manualToken).then(() => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 2000);
+              });
+            }}
+          >
+            {copied ? "Copied" : "Copy token"}
+          </Button>
+        </div>
       ) : (
         <p className="text-muted-foreground text-sm">{status || "Connecting extension…"}</p>
       )}
-      {!extensionId && (
+      {!extensionId && !manualToken && (
         <p className="text-muted-foreground text-xs">Set VITE_EXTENSION_ID in the web env to enable automatic extension handoff.</p>
       )}
     </div>

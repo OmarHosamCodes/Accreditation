@@ -1,5 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { normalizePublicAuditUrl, publicAuditUrl } from "./urls.ts";
+import { isSocialPageUrl, normalizePublicAuditUrl, publicAuditUrl } from "./urls.ts";
+
+describe("isSocialPageUrl", () => {
+  test("accepts desktop and mobile Instagram/Facebook URLs", () => {
+    expect(isSocialPageUrl("https://www.instagram.com/brand/")).toBe(true);
+    expect(isSocialPageUrl("https://instagram.com/brand")).toBe(true);
+    expect(isSocialPageUrl("https://m.instagram.com/brand/")).toBe(true);
+    expect(isSocialPageUrl("https://www.facebook.com/brand")).toBe(true);
+    expect(isSocialPageUrl("https://facebook.com/brand")).toBe(true);
+    expect(isSocialPageUrl("https://m.facebook.com/brand/")).toBe(true);
+  });
+
+  test("rejects other hosts", () => {
+    expect(isSocialPageUrl("https://twitter.com/brand")).toBe(false);
+    expect(isSocialPageUrl("https://example.com/brand")).toBe(false);
+  });
+});
 
 describe("publicAuditUrl", () => {
   test("builds path-based audit URLs", () => {

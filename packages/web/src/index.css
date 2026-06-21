@@ -59,6 +59,10 @@
   --shadow-2xl: 0px 0px 0px 0px hsl(0 0% 0% / 0.00);
   --tracking-normal: -0.02em;
   --spacing: 0.25rem;
+
+  --scrollbar-track: var(--background);
+  --scrollbar-thumb: color-mix(in srgb, var(--primary) 45%, var(--border));
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--primary) 70%, var(--border));
 }
 
 @theme inline {
@@ -124,6 +128,23 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 2px solid var(--scrollbar-track);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
   }
   body {
     @apply bg-background text-foreground;

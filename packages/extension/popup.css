@@ -122,6 +122,42 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.manual-token {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.manual-token summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  list-style-position: outside;
+}
+
+.manual-token summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.manual-token[open] summary {
+  margin-bottom: 4px;
+}
+
+#saveManualToken {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+@media (hover: hover) {
+  #saveManualToken:hover {
+    background: color-mix(in oklch, var(--secondary) 88%, var(--foreground));
+  }
+}
+
 @media (max-width: 360px) {
   main {
     padding: 14px;

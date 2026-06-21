@@ -1,4 +1,4 @@
-import type { Platform } from "@accreditation/shared";
+import { isSocialPageUrl, type Platform } from "@accreditation/shared";
 import { parseJson } from "../../http/responses.ts";
 import type { Store } from "../../store/types.ts";
 import {
@@ -43,7 +43,7 @@ export async function createBrand(request: Request, store: Store) {
 
   if (name.length < 2) errors.push("Brand name is required.");
   if (!["ig", "fb"].includes(platform)) errors.push("Platform must be ig or fb.");
-  if (!/^https?:\/\/(www\.)?(facebook|instagram)\.com\//i.test(url)) {
+  if (!isSocialPageUrl(url)) {
     errors.push("URL must be a facebook.com or instagram.com link.");
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail)) errors.push("Enter a valid email.");
