@@ -17,6 +17,7 @@ const MIME: Record<string, string> = {
   ".ico": "image/x-icon",
   ".json": "application/json",
   ".map": "application/json",
+  ".zip": "application/zip",
 };
 
 function contentType(filePath: string) {

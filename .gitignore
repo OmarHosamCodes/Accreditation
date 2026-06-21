@@ -7,6 +7,7 @@ dist
 packages/*/dist
 *.tgz
 extension*.zip
+packages/web/public/downloads/*.zip
 
 # code coverage
 coverage

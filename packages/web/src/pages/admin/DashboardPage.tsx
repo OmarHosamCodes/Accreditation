@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { ExtensionDownloadButton } from "@/components/admin/ExtensionDownloadButton";
 import { AdminPageHeader, AdminSection, AdminStatCard } from "@/components/admin/AdminPageHeader";
 import { AdminTable, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/admin/AdminTable";
 import { ApplicationStatusBadge, PlatformBadge } from "@/components/admin/StatusBadge";
@@ -24,6 +25,7 @@ export function DashboardPage() {
         description="Overview of queue activity, audits, and records."
         actions={
           <>
+            <ExtensionDownloadButton />
             <Button variant="outline" size="sm" asChild>
               <Link to="/admin/connect-extension">
                 <Plug className="size-4" />
@@ -43,6 +45,24 @@ export function DashboardPage() {
         <AdminStatCard label="Published audits" value={published} to="/admin/audits?status=published" />
         <AdminStatCard label="Brands" value={db.brands.length} to="/admin/brands" />
       </div>
+
+      <AdminSection title="Browser extension">
+        <div className="bg-card rounded-lg border p-4">
+          <p className="text-muted-foreground mb-3 text-sm">
+            Install the audit toolbar in Chrome, Edge, or Edge Canary on Android. Unzip the download, enable
+            developer mode in your browser&apos;s extensions page, then load the unpacked folder.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ExtensionDownloadButton variant="default" />
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/connect-extension">
+                <Plug className="size-4" />
+                Connect extension
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </AdminSection>
 
       <AdminSection title="Recent applications">
         {recentApps.length ? (

@@ -2,6 +2,7 @@ import { Plug } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminPageHeader, AdminSection } from "@/components/admin/AdminPageHeader";
+import { ExtensionDownloadButton } from "@/components/admin/ExtensionDownloadButton";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +39,17 @@ export function SettingsPage() {
       <AdminSection title="Extension">
         <div className="bg-card rounded-lg border p-4">
           <p className="text-muted-foreground mb-3 text-sm">
-            Connect the browser extension to your admin session for live page auditing.
+            Download and install the browser extension, then connect it to your admin session for live page auditing.
           </p>
-          <Button asChild>
-            <Link to="/admin/connect-extension">
-              <Plug className="size-4" />
-              Connect extension
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <ExtensionDownloadButton variant="default" />
+            <Button asChild>
+              <Link to="/admin/connect-extension">
+                <Plug className="size-4" />
+                Connect extension
+              </Link>
+            </Button>
+          </div>
         </div>
       </AdminSection>
 

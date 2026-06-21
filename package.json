@@ -12,7 +12,7 @@
     "dev:server": "bun --filter @accreditation/server dev",
     "dev:db": "docker compose up -d",
     "start": "bun --filter @accreditation/server start",
-    "build": "bun --filter @accreditation/web build && bun --filter @accreditation/server build",
+    "build": "bun --filter @accreditation/extension pack:web && bun --filter @accreditation/web build && bun --filter @accreditation/server build",
     "test": "bun test",
     "typecheck": "bun --filter @accreditation/shared typecheck && bun --filter @accreditation/server typecheck && bun --filter @accreditation/web typecheck",
     "check": "bun run typecheck && bun run build"

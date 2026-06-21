@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "prepare": "cp node_modules/gsap/dist/gsap.min.js .",
-    "pack": "bun run prepare && mkdir -p dist && zip -r dist/accreditation-extension.zip . -x 'node_modules/*' -x 'dist/*'"
+    "pack": "bun run prepare && mkdir -p dist && zip -r dist/accreditation-extension.zip . -x 'node_modules/*' -x 'dist/*'",
+    "pack:web": "bun run pack && mkdir -p ../web/public/downloads && cp dist/accreditation-extension.zip ../web/public/downloads/accreditation-extension.zip"
   },
   "dependencies": {
     "gsap": "^3.15.0"
